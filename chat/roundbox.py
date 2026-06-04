@@ -17,6 +17,7 @@
 import math
 
 from gi.repository import Gtk
+from gi.repository import Graphene
 
 from sugar4.graphics import style
 
@@ -33,27 +34,36 @@ class RoundBox(Gtk.Box):
         self.border_color = style.COLOR_BLACK
         self.tail = None
         self.background_color = None
-        self.set_resize_mode(Gtk.ResizeMode.PARENT)
-        self.set_reallocate_redraws(True)
-        self.connect('draw', self.__draw_cb)
-        self.connect('add', self.__add_cb)
 
-    def __add_cb(self, child, params):
+    def append(self, child):
         child.set_margin_start(style.zoom(5))
         child.set_margin_end(style.zoom(5))
         child.set_margin_top(style.zoom(5))
         child.set_margin_bottom(style.zoom(5))
+        super().append(child)
 
-    def __draw_cb(self, widget, cr):
-        rect = self.get_allocation()
+    def pack_start(self, child, expand, fill, padding):
+        '''GTK3 compat wrapper — just delegates to append.'''
+        self.append(child)
+
+    def add(self, child):
+        '''GTK3 compat wrapper — just delegates to append.'''
+        self.append(child)
+
+    def do_snapshot(self, snapshot):
+        w = self.get_width()
+        h = self.get_height()
+        rect = Graphene.Rect().init(0, 0, w, h)
+        cr = snapshot.append_cairo(rect)
+
         hmargin = style.zoom(15)
         x = hmargin
         y = 0
-        width = rect.width - _BORDER_DEFAULT * 2. - hmargin * 2
+        width = w - _BORDER_DEFAULT * 2. - hmargin * 2
         if self.tail is None:
-            height = rect.height - _BORDER_DEFAULT * 2.
+            height = h - _BORDER_DEFAULT * 2.
         else:
-            height = rect.height - _BORDER_DEFAULT * 2. - self._radius
+            height = h - _BORDER_DEFAULT * 2. - self._radius
 
         cr.move_to(x + self._radius, y)
         cr.arc(x + width - self._radius, y + self._radius,
@@ -95,34 +105,7 @@ class RoundBox(Gtk.Box):
             cr.set_source_rgb(r, g, b)
             cr.set_line_width(_BORDER_DEFAULT)
             cr.stroke()
-        return False
 
+        # Render children on top of the background
+        Gtk.Box.do_snapshot(self, snapshot)
 
-if __name__ == '__main__':
-
-    win = Gtk.Window()
-    win.connect('destroy', Gtk.main_quit)
-    win.set_default_size(450, 450)
-    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-    box1 = RoundBox()
-    box1.tail = 'right'
-    vbox.add(box1)
-    label1 = Gtk.Label("Test 1")
-    box1.add(label1)
-
-    rbox = RoundBox()
-    rbox.tail = 'left'
-    rbox.background_color = style.Color('#FF0000')
-    vbox.add(rbox)
-    label2 = Gtk.Label("Test 2")
-    rbox.add(label2)
-
-    bbox = RoundBox()
-    bbox.background_color = style.Color('#aaff33')
-    bbox.border_color = style.Color('#ff3300')
-    vbox.add(bbox)
-
-    win.add(vbox)
-    win.show_all()
-    Gtk.main()
