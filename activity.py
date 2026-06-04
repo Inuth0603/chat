@@ -584,10 +584,10 @@ class Chat(activity.Activity):
         self._entry_grid.attach(self.send_button, 2, 0, 1, 1)
         self.send_button.show()
 
-        if not self.get_shared():
-            self._entry.set_sensitive(False)
-            self.smiley_button.set_sensitive(False)
-            self.send_button.set_sensitive(False)
+        # if not self.get_shared():
+        #     self._entry.set_sensitive(False)
+        #     self.smiley_button.set_sensitive(False)
+        #     self.send_button.set_sensitive(False)
 
     def _clear_icon_cb(self, entry, icon_pos, event):
         self._entry.set_text("")
