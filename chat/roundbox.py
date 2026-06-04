@@ -18,16 +18,17 @@ import math
 
 from gi.repository import Gtk
 
-from sugar3.graphics import style
+from sugar4.graphics import style
 
 _BORDER_DEFAULT = style.LINE_WIDTH
 
 
-class RoundBox(Gtk.HBox):
+class RoundBox(Gtk.Box):
     __gtype_name__ = 'RoundBox'
 
     def __init__(self, **kwargs):
-        Gtk.HBox.__init__(self, **kwargs)
+        kwargs['orientation'] = Gtk.Orientation.HORIZONTAL
+        Gtk.Box.__init__(self, **kwargs)
         self._radius = style.zoom(15)
         self.border_color = style.COLOR_BLACK
         self.tail = None
@@ -38,7 +39,10 @@ class RoundBox(Gtk.HBox):
         self.connect('add', self.__add_cb)
 
     def __add_cb(self, child, params):
-        child.set_border_width(style.zoom(5))
+        child.set_margin_start(style.zoom(5))
+        child.set_margin_end(style.zoom(5))
+        child.set_margin_top(style.zoom(5))
+        child.set_margin_bottom(style.zoom(5))
 
     def __draw_cb(self, widget, cr):
         rect = self.get_allocation()
@@ -99,7 +103,7 @@ if __name__ == '__main__':
     win = Gtk.Window()
     win.connect('destroy', Gtk.main_quit)
     win.set_default_size(450, 450)
-    vbox = Gtk.VBox()
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
     box1 = RoundBox()
     box1.tail = 'right'

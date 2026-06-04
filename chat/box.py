@@ -30,12 +30,32 @@ from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import Pango
 
-from sugar3.graphics import style
-from sugar3.graphics.palette import Palette, Invoker
-from sugar3.graphics.palettemenu import PaletteMenuItem
-from sugar3.graphics.palette import MouseSpeedDetector
-from sugar3.util import timestamp_to_elapsed_string
-from sugar3 import profile
+def _get_screen_width():
+    display = Gdk.Display.get_default()
+    if not display:
+        return 1200
+    monitors = display.get_monitors()
+    if monitors.get_n_items() == 0:
+        return 1200
+    return monitors.get_item(0).get_geometry().width
+
+def _get_screen_height():
+    display = Gdk.Display.get_default()
+    if not display:
+        return 900
+    monitors = display.get_monitors()
+    if monitors.get_n_items() == 0:
+        return 900
+    return monitors.get_item(0).get_geometry().height
+
+
+
+from sugar4.graphics import style
+from sugar4.graphics.palette import Palette, Invoker
+from sugar4.graphics.palettemenu import PaletteMenuItem
+from sugar4.graphics.palette import MouseSpeedDetector
+from sugar4.util import timestamp_to_elapsed_string
+from sugar4 import profile
 
 from chat import smilies
 from chat.roundbox import RoundBox
@@ -80,7 +100,7 @@ class TextBox(Gtk.TextView):
     __gsignals__ = {
         'open-on-journal': (GObject.SignalFlags.RUN_FIRST, None, ([str])), }
 
-    hand_cursor = Gdk.Cursor.new(Gdk.CursorType.HAND2)
+    hand_cursor = Gdk.Cursor.new_from_name("pointer", None)
 
     def __init__(self, parent,
                  name_color, text_color, bg_color, highlight_color,
@@ -149,7 +169,7 @@ class TextBox(Gtk.TextView):
 
     def resize_box(self):
         self.set_buffer(self._empty_buffer)
-        self.set_size_request(Gdk.Screen.width() - style.GRID_CELL_SIZE -
+        self.set_size_request(_get_screen_width() - style.GRID_CELL_SIZE -
                               2 * style.DEFAULT_SPACING, -1)
 
     def __leave_notify_event_cb(self, widget, event):
@@ -352,9 +372,12 @@ class ChatBox(Gtk.ScrolledWindow):
 
         self._conversation = Gtk.Grid()
         self._conversation.set_row_spacing(style.DEFAULT_PADDING)
-        self._conversation.set_border_width(0)
+        self._conversation.set_margin_start(0)
+        self._conversation.set_margin_end(0)
+        self._conversation.set_margin_top(0)
+        self._conversation.set_margin_bottom(0)
         self._conversation.set_size_request(
-            Gdk.Screen.width() - style.GRID_CELL_SIZE, -1)
+            _get_screen_width() - style.GRID_CELL_SIZE, -1)
 
         self.search_text = ''
 
@@ -364,14 +387,12 @@ class ChatBox(Gtk.ScrolledWindow):
         # OSK padding for conversation
         self._dy = 0
 
-        evbox = Gtk.EventBox()
-        evbox.modify_bg(
-            Gtk.StateType.NORMAL, style.COLOR_WHITE.get_gdk_color())
-        evbox.add(self._conversation)
+        evbox = Gtk.Box()
+        evbox.append(self._conversation)
         self._conversation.show()
 
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.ALWAYS)
-        self.add_with_viewport(evbox)
+        self.set_child(evbox)
         evbox.show()
 
         vadj = self.get_vadjustment()
@@ -564,7 +585,7 @@ class ChatBox(Gtk.ScrolledWindow):
         return self._chat_log
 
     def add_text(self, buddy, text, status_message=False):
-        '''Display text on screen, with name and colors.
+        r'''Display text on screen, with name and colors.
         buddy -- buddy object or dict {nick: string, color: string}
         (The dict is for loading the chat log from the journal,
         when we don't have the buddy object any more.)
@@ -679,9 +700,12 @@ class ChatBox(Gtk.ScrolledWindow):
 
             grid_internal = Gtk.Grid()
             grid_internal.set_row_spacing(0)
-            grid_internal.set_border_width(style.DEFAULT_PADDING)
+            grid_internal.set_margin_start(style.DEFAULT_PADDING)
+            grid_internal.set_margin_end(style.DEFAULT_PADDING)
+            grid_internal.set_margin_top(style.DEFAULT_PADDING)
+            grid_internal.set_margin_bottom(style.DEFAULT_PADDING)
             grid_internal.set_size_request(
-                Gdk.Screen.width() - style.GRID_CELL_SIZE, -1)
+                _get_screen_width() - style.GRID_CELL_SIZE, -1)
             self._grid_list.append(grid_internal)
 
             row = 0
@@ -809,10 +833,10 @@ class ChatBox(Gtk.ScrolledWindow):
     def resize_rb(self):
         for grid in self._grid_list:
             grid.set_size_request(
-                Gdk.Screen.width() - style.GRID_CELL_SIZE, -1)
+                _get_screen_width() - style.GRID_CELL_SIZE, -1)
         for rb in self._rb_list:
             rb.set_size_request(
-                Gdk.Screen.width() - style.GRID_CELL_SIZE, -1)
+                _get_screen_width() - style.GRID_CELL_SIZE, -1)
         self.resize_conversation()
 
     def resize_conversation(self, dy=None):
@@ -823,8 +847,8 @@ class ChatBox(Gtk.ScrolledWindow):
             self._dy = dy
 
         self._conversation.set_size_request(
-            Gdk.Screen.width() - style.GRID_CELL_SIZE,
-            Gdk.Screen.height() - 2 * style.GRID_CELL_SIZE - dy)
+            _get_screen_width() - style.GRID_CELL_SIZE,
+            _get_screen_height() - 2 * style.GRID_CELL_SIZE - dy)
 
 
 class ContentInvoker(Invoker):
@@ -849,7 +873,10 @@ class _URLMenu(Palette):
         menu_box = Gtk.VBox()
         self.set_content(menu_box)
         menu_box.show()
-        self._content.set_border_width(1)
+        self._content.set_margin_start(1)
+        self._content.set_margin_end(1)
+        self._content.set_margin_top(1)
+        self._content.set_margin_bottom(1)
         menu_item = PaletteMenuItem(_('Copy to Clipboard'), 'edit-copy')
         menu_item.connect('activate', self._copy_to_clipboard_cb)
         menu_box.pack_start(menu_item, False, False, 0)

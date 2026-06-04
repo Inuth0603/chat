@@ -18,7 +18,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 import gi
-gi.require_version('Gtk', '3.0')
+gi.require_version('Gtk', '4.0')
 gi.require_version('TelepathyGLib', '0.12')
 
 from gi.repository import Gtk
@@ -38,23 +38,39 @@ import json
 import os
 import time
 import dbus
+
+def _get_screen_width():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            return monitors.get_item(0).get_geometry().width
+    return 1200
+
+def _get_screen_height():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            return monitors.get_item(0).get_geometry().height
+    return 900
 from gettext import gettext as _
 
-from sugar3.graphics import style
-from sugar3.graphics.icon import EventIcon, Icon
-from sugar3.graphics.alert import NotifyAlert
-from sugar3.graphics.toolbarbox import ToolbarBox
-from sugar3.graphics.toolbutton import ToolButton
-from sugar3.activity import activity
-from sugar3.activity.activity import get_bundle_path
-from sugar3.presence import presenceservice
-from sugar3.activity.widgets import ActivityToolbarButton
-from sugar3.activity.widgets import StopButton
-from sugar3.activity.activity import get_activity_root
-from sugar3.activity.activity import show_object_in_journal
-from sugar3.datastore import datastore
-from sugar3 import profile
-from sugar3.graphics import iconentry
+from sugar4.graphics import style
+from sugar4.graphics.icon import EventIcon, Icon
+from sugar4.graphics.alert import NotifyAlert
+from sugar4.graphics.toolbarbox import ToolbarBox
+from sugar4.graphics.toolbutton import ToolButton
+from sugar4.activity import activity
+from sugar4.activity.activity import get_bundle_path
+from sugar4.presence import presenceservice
+from sugar4.activity.widgets import ActivityToolbarButton
+from sugar4.activity.widgets import StopButton
+from sugar4.activity.activity import get_activity_root
+from sugar4.activity.activity import show_object_in_journal
+from sugar4.datastore import datastore
+from sugar4 import profile
+from sugar4.graphics import iconentry
 
 from chat import smilies
 from chat.box import ChatBox
@@ -92,44 +108,45 @@ class Chat(activity.Activity):
         self._activity_toolbar_button = ActivityToolbarButton(self)
         self._activity_toolbar_button.connect('clicked', self._fixed_resize_cb)
 
-        toolbar_box.toolbar.insert(self._activity_toolbar_button, 0)
+        toolbar_box.toolbar.prepend(self._activity_toolbar_button)
         self._activity_toolbar_button.show()
 
         self.search_entry = iconentry.IconEntry()
-        self.search_entry.set_size_request(Gdk.Screen.width() / 3, -1)
+        self.search_entry.set_size_request((_get_screen_width()) / 3, -1)
         self.search_entry.set_icon_from_name(
             iconentry.ICON_ENTRY_PRIMARY, 'entry-search')
         self.search_entry.add_clear_button()
         self.search_entry.connect('activate', self._search_entry_activate_cb)
         self.search_entry.connect('changed', self._search_entry_activate_cb)
 
-        self.connect('key-press-event', self._search_entry_key_press_cb)
+        key_ctrl = Gtk.EventControllerKey.new()
+        key_ctrl.connect("key-pressed", self._search_entry_key_press_cb)
+        self.add_controller(key_ctrl)
 
-        self._search_item = Gtk.ToolItem()
-        self._search_item.add(self.search_entry)
-        toolbar_box.toolbar.insert(self._search_item, -1)
+        self._search_item = Gtk.Box()
+        self._search_item.append(self.search_entry)
+        toolbar_box.toolbar.append(self._search_item)
 
         self._search_prev = ToolButton('go-previous-paired')
         self._search_prev.set_tooltip(_('Previous'))
         self._search_prev.props.accelerator = "<Shift><Ctrl>g"
         self._search_prev.connect('clicked', self._search_prev_cb)
         self._search_prev.props.sensitive = False
-        toolbar_box.toolbar.insert(self._search_prev, -1)
+        toolbar_box.toolbar.append(self._search_prev)
 
         self._search_next = ToolButton('go-next-paired')
         self._search_next.set_tooltip(_('Next'))
         self._search_next.props.accelerator = "<Ctrl>g"
         self._search_next.connect('clicked', self._search_next_cb)
         self._search_next.props.sensitive = False
-        toolbar_box.toolbar.insert(self._search_next, -1)
+        toolbar_box.toolbar.append(self._search_next)
 
-        separator = Gtk.SeparatorToolItem()
-        separator.props.draw = False
-        separator.set_expand(True)
-        toolbar_box.toolbar.insert(separator, -1)
+        separator = Gtk.Box()
+        separator.set_hexpand(True)
+        toolbar_box.toolbar.append(separator)
 
-        toolbar_box.toolbar.insert(StopButton(self), -1)
-        toolbar_box.show_all()
+        toolbar_box.toolbar.append(StopButton(self))
+        toolbar_box.show()
 
         # Chat is room or one to one:
         self._chat_is_room = False
@@ -147,7 +164,7 @@ class Chat(activity.Activity):
                 # we have already joined
                 self._joined_cb(self)
         elif handle.uri:
-            # XMPP non-sugar3 incoming chat, not sharable
+            # XMPP non-sugar4 incoming chat, not sharable
             self._activity_toolbar_button.props.page.share.props.visible = \
                 False
             self._one_to_one_connection(handle.uri)
@@ -164,10 +181,10 @@ class Chat(activity.Activity):
                     _('Please wait for a connection before starting to chat.')
             self.connect('shared', self._shared_cb)
 
-    def _search_entry_key_press_cb(self, activity, event):
-        keyname = Gdk.keyval_name(event.keyval).lower()
+    def _search_entry_key_press_cb(self, controller, keyval, keycode, state):
+        keyname = Gdk.keyval_name(keyval).lower()
         if keyname == 'f':
-            if Gdk.ModifierType.CONTROL_MASK & event.state:
+            if Gdk.ModifierType.CONTROL_MASK & state:
                 self.search_entry.grab_focus()
         elif keyname == 'escape':
             self.search_entry.props.text = ''
@@ -237,8 +254,7 @@ class Chat(activity.Activity):
         ''' Create a canvas '''
         self._fixed = Gtk.Fixed()
         self._fixed.set_size_request(
-            Gdk.Screen.width(), Gdk.Screen.height() - style.GRID_CELL_SIZE)
-        self._fixed.connect('size-allocate', self._fixed_resize_cb)
+            (_get_screen_width()), (_get_screen_height()) - style.GRID_CELL_SIZE)
         self.set_canvas(self._fixed)
         self._fixed.show()
 
@@ -250,27 +266,27 @@ class Chat(activity.Activity):
                         self._chat_height)
         self._entry_grid.show()
 
-        Gdk.Screen.get_default().connect('size-changed', self._configure_cb)
+        # Gdk.Screen.get_default().connect('size-changed', self._configure_cb)
 
     def _configure_cb(self, event):
         self._fixed.set_size_request(
-            Gdk.Screen.width(), Gdk.Screen.height() - style.GRID_CELL_SIZE)
+            (_get_screen_width()), (_get_screen_height()) - style.GRID_CELL_SIZE)
         self._entry_height = style.GRID_CELL_SIZE
-        entry_width = Gdk.Screen.width() - \
+        entry_width = (_get_screen_width()) - \
             2 * (self._entry_height + style.GRID_CELL_SIZE)
         self._entry.set_size_request(entry_width, self._entry_height)
         self._entry_grid.set_size_request(
-            Gdk.Screen.width() - 2 * style.GRID_CELL_SIZE,
+            (_get_screen_width()) - 2 * style.GRID_CELL_SIZE,
             self._entry_height)
 
-        self._chat_height = Gdk.Screen.height() - self._entry_height - \
+        self._chat_height = (_get_screen_height()) - self._entry_height - \
             style.GRID_CELL_SIZE
-        self._chat_width = Gdk.Screen.width()
+        self._chat_width = (_get_screen_width())
         self.chatbox.set_size_request(self._chat_width, self._chat_height)
         self.chatbox.resize_all()
 
-        width = int(Gdk.Screen.width() - 2 * style.GRID_CELL_SIZE)
-        height = int(Gdk.Screen.height() - 5 * style.GRID_CELL_SIZE)
+        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
+        height = int((_get_screen_height()) - 5 * style.GRID_CELL_SIZE)
         self._smiley_table.set_size_request(width, height)
         self._smiley_toolbar.set_size_request(width, -1)
         self._smiley_window.set_size_request(width, -1)
@@ -301,11 +317,13 @@ class Chat(activity.Activity):
                                                             pixel_size,
                                                             pixel_size)
             image = Gtk.Image.new_from_pixbuf(pixbuf)
-            box = Gtk.EventBox()
-            box.add(image)
-            box.connect('button-press-event', self._add_smiley_to_entry, code)
+            box = Gtk.Box()
+            box.append(image)
+            gesture = Gtk.GestureClick.new()
+            gesture.connect('pressed', lambda g, n, dx, dy: self._add_smiley_to_entry(box, None, code))
+            box.add_controller(gesture)
             table.attach(box, x, y, 1, 1)
-            box.show_all()
+            box.show()
             return True
 
         x = 0
@@ -335,7 +353,7 @@ class Chat(activity.Activity):
         self._setup()
 
     def _one_to_one_connection(self, tp_channel):
-        '''Handle a private invite from a non-sugar3 XMPP client.'''
+        '''Handle a private invite from a non-sugar4 XMPP client.'''
         if self.shared_activity or self.text_channel:
             return
         bus_name, connection, channel = json.loads(tp_channel)
@@ -519,44 +537,50 @@ class Chat(activity.Activity):
         ---------------------------------------
         '''
         self._entry_height = style.GRID_CELL_SIZE
-        entry_width = Gdk.Screen.width() - \
+        entry_width = (_get_screen_width()) - \
             2 * (self._entry_height + style.GRID_CELL_SIZE)
-        self._chat_height = Gdk.Screen.height() - self._entry_height - \
+        self._chat_height = (_get_screen_height()) - self._entry_height - \
             style.GRID_CELL_SIZE
-        self._chat_width = Gdk.Screen.width()
+        self._chat_width = (_get_screen_width())
 
         self.chatbox.set_size_request(self._chat_width, self._chat_height)
 
         self._entry_grid = Gtk.Grid()
         self._entry_grid.set_size_request(
-            Gdk.Screen.width() - 2 * style.GRID_CELL_SIZE,
+            (_get_screen_width()) - 2 * style.GRID_CELL_SIZE,
             self._entry_height)
 
         self.smiley_button = EventIcon(icon_name='smilies',
                                   pixel_size=self._entry_height)
-        self.smiley_button.connect('button-press-event', self._smiley_button_cb)
+        gesture = Gtk.GestureClick.new()
+        gesture.connect('pressed', lambda g, n, x, y: self._smiley_button_cb(self.smiley_button, None))
+        self.smiley_button.add_controller(gesture)
         self._entry_grid.attach(self.smiley_button, 0, 0, 1, 1)
         self.smiley_button.show()
 
         self._entry = Gtk.Entry()
         self._entry.set_size_request(entry_width, self._entry_height)
-        self._entry.modify_bg(Gtk.StateType.INSENSITIVE,
-                              style.COLOR_WHITE.get_gdk_color())
-        self._entry.modify_base(Gtk.StateType.INSENSITIVE,
-                                style.COLOR_WHITE.get_gdk_color())
 
         self._entry.props.placeholder_text = \
             _('You must be connected to a friend before starting to chat.')
-        self._entry.connect('focus-in-event', self._entry_focus_in_cb)
-        self._entry.connect('focus-out-event', self._entry_focus_out_cb)
+        focus_ctrl = Gtk.EventControllerFocus.new()
+        focus_ctrl.connect("enter", lambda c: self._entry_focus_in_cb(self._entry, None))
+        focus_ctrl.connect("leave", lambda c: self._entry_focus_out_cb(self._entry, None))
+        self._entry.add_controller(focus_ctrl)
         self._entry.connect('activate', self._entry_activate_cb)
-        self._entry.connect('key-press-event', self._entry_key_press_cb)
+        
+        key_ctrl2 = Gtk.EventControllerKey.new()
+        key_ctrl2.connect("key-pressed", self._entry_key_press_cb)
+        self._entry.add_controller(key_ctrl2)
+        
         self._entry_grid.attach(self._entry, 1, 0, 1, 1)
         self._entry.show()
 
         self.send_button = EventIcon(icon_name='send',
                                 pixel_size=self._entry_height)
-        self.send_button.connect('button-press-event', self._send_button_cb)
+        send_gesture = Gtk.GestureClick.new()
+        send_gesture.connect('pressed', lambda g, n, x, y: self._send_button_cb(self.send_button, None))
+        self.send_button.add_controller(send_gesture)
         self._entry_grid.attach(self.send_button, 2, 0, 1, 1)
         self.send_button.show()
 
@@ -584,25 +608,25 @@ class Chat(activity.Activity):
     def _entry_focus_out_cb(self, entry, event):
         pass
 
-    def _entry_key_press_cb(self, widget, event):
+    def _entry_key_press_cb(self, controller, keyval, keycode, state):
         '''Check for scrolling keys.
 
         Check if the user pressed Page Up, Page Down, Home or End and
         scroll the window according the pressed key.
         '''
         vadj = self.chatbox.get_vadjustment()
-        if event.keyval == Gdk.KEY_Page_Down:
+        if keyval == Gdk.KEY_Page_Down:
             value = vadj.get_value() + vadj.page_size
             if value > vadj.upper - vadj.page_size:
                 value = vadj.upper - vadj.page_size
             vadj.set_value(value)
-        elif event.keyval == Gdk.KEY_Page_Up:
+        elif keyval == Gdk.KEY_Page_Up:
             vadj.set_value(vadj.get_value() - vadj.page_size)
-        elif event.keyval == Gdk.KEY_Home and \
-                event.get_state() & Gdk.ModifierType.CONTROL_MASK:
+        elif keyval == Gdk.KEY_Home and \
+                state & Gdk.ModifierType.CONTROL_MASK:
             vadj.set_value(vadj.lower)
-        elif event.keyval == Gdk.KEY_End and \
-                event.get_state() & Gdk.ModifierType.CONTROL_MASK:
+        elif keyval == Gdk.KEY_End and \
+                state & Gdk.ModifierType.CONTROL_MASK:
             vadj.set_value(vadj.upper - vadj.page_size)
 
     def _smiley_button_cb(self, widget, event):
@@ -674,7 +698,7 @@ class Chat(activity.Activity):
 
     def _create_smiley_window(self):
         grid = Gtk.Grid()
-        width = int(Gdk.Screen.width() - 2 * style.GRID_CELL_SIZE)
+        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
 
         self._smiley_toolbar = SmileyToolbar(self)
         height = style.GRID_CELL_SIZE
@@ -687,7 +711,7 @@ class Chat(activity.Activity):
                                       Gtk.PolicyType.AUTOMATIC)
         self._smiley_table.modify_bg(
             Gtk.StateType.NORMAL, style.COLOR_BLACK.get_gdk_color())
-        height = int(Gdk.Screen.height() - 4 * style.GRID_CELL_SIZE)
+        height = int((_get_screen_height()) - 4 * style.GRID_CELL_SIZE)
         self._smiley_table.set_size_request(width, height)
 
         table = self._create_smiley_table(width)
@@ -815,7 +839,7 @@ class TextChannelWrapper(object):
                 nick = self._conn[co].RequestAliases([sender])[0]
                 buddy = {'nick': nick, 'color': '#000000,#808080'}
             else:
-                # Normal sugar3 MUC chat
+                # Normal sugar4 MUC chat
                 # XXX: cache these
                 buddy = self._get_buddy(sender)
             self._activity_cb(buddy, text)
@@ -862,10 +886,10 @@ class TextChannelWrapper(object):
             tp_name, tp_path, handle)
 
 
-class SmileyToolbar(Gtk.Toolbar):
+class SmileyToolbar(Gtk.Box):
 
     def __init__(self, activity):
-        Gtk.Toolbar.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         self._activity = activity
         self._add_separator()
@@ -875,7 +899,7 @@ class SmileyToolbar(Gtk.Toolbar):
 
         self._add_separator()
 
-        self._title = Gtk.Label(_('Insert a smiley'))
+        self._title = Gtk.Label(label=_('Insert a smiley'))
         self._add_widget(self._title)
 
         self._add_separator(True)
@@ -883,28 +907,20 @@ class SmileyToolbar(Gtk.Toolbar):
         self.cancel_button = ToolButton('dialog-cancel')
         self.cancel_button.set_tooltip(_('Cancel'))
         self.cancel_button.connect('clicked', self.__cancel_button_clicked_cb)
-        self.insert(self.cancel_button, -1)
-        self.cancel_button.show()
+        self.append(self.cancel_button)
 
     def _add_separator(self, expand=False):
-        separator = Gtk.SeparatorToolItem()
-        separator.props.draw = False
+        separator = Gtk.Box()
         if expand:
-            separator.set_expand(True)
+            separator.set_hexpand(True)
         else:
             separator.set_size_request(style.DEFAULT_SPACING, -1)
-        self.insert(separator, -1)
-        separator.show()
+        self.append(separator)
 
     def _add_widget(self, widget, expand=False):
-        tool_item = Gtk.ToolItem()
-        tool_item.set_expand(expand)
-
-        tool_item.add(widget)
-        widget.show()
-
-        self.insert(tool_item, -1)
-        tool_item.show()
+        if expand:
+            widget.set_hexpand(True)
+        self.append(widget)
 
     def __cancel_button_clicked_cb(self, widget, data=None):
         self._activity._hide_smiley_window()
