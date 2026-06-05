@@ -290,14 +290,14 @@ class Chat(activity.Activity):
         spacing = 8
         button_size = pixel_size + spacing
         smilies_columns = max(1, int(width / button_size))
-        pad = (width - smilies_columns * button_size) / 2
 
         table = Gtk.Grid()
         table.set_row_spacing(spacing)
         table.set_column_spacing(spacing)
-        # Add padding to perfectly center the grid block, mimicking GTK3!
-        table.set_margin_start(int(pad))
-        table.set_margin_end(int(pad))
+        
+        # Center the grid block so columns don't stretch and create huge gaps!
+        table.set_halign(Gtk.Align.CENTER)
+        
         table.set_margin_top(spacing)
         table.set_margin_bottom(spacing)
 
@@ -336,18 +336,12 @@ class Chat(activity.Activity):
 
     def _create_smiley_window(self):
         self._smiley_window = Gtk.Grid()
-        
-        # Apply black background to the ENTIRE smiley picker window
-        self._smiley_window.add_css_class("smiley-picker")
-        css_provider = Gtk.CssProvider()
-        bg_html = style.COLOR_BLACK.get_html()
-        css = f".smiley-picker {{ background-color: {bg_html}; }}"
-        css_provider.load_from_data(css.encode('utf-8'))
-        self._smiley_window.get_style_context().add_provider(
-            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-        # Revert to original width calculation based on Sugar GRID_CELL_SIZE padding
-        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
+        # In GTK3, the entire window was indented, creating white margins on the sides!
+        margin = style.GRID_CELL_SIZE
+        width = int((_get_screen_width()) - 2 * margin)
+        self._smiley_window.set_margin_start(margin)
+        self._smiley_window.set_margin_end(margin)
 
         self._smiley_toolbar = SmileyToolbar(self)
         self._smiley_toolbar.set_size_request(width, style.GRID_CELL_SIZE)
@@ -358,7 +352,17 @@ class Chat(activity.Activity):
         self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
                                       Gtk.PolicyType.AUTOMATIC)
         
-        # Expand the table vertically to push the black background down to the entry bar
+        # Disable overlay scrolling so the scrollbar is permanently visible like GTK3
+        self._smiley_table.set_overlay_scrolling(False)
+        
+        # Apply the black CSS strictly to the scroll area (like GTK3), not the toolbar!
+        css_provider = Gtk.CssProvider()
+        bg_html = style.COLOR_BLACK.get_html()
+        css = f"scrolledwindow {{ background-color: {bg_html}; }}"
+        css_provider.load_from_data(css.encode('utf-8'))
+        self._smiley_table.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        
         self._smiley_table.set_vexpand(True)
         self._smiley_table.set_hexpand(True)
 
