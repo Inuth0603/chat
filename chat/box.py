@@ -152,16 +152,24 @@ class TextBox(Gtk.TextView):
         self.get_style_context().add_provider(
             css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-        self.connect('event-after', self.__event_after_cb)
-        self.connect('button-press-event', self.__button_press_cb)
-        self.motion_notify_id = \
-            self.connect('motion-notify-event', self.__motion_notify_cb)
-        self.connect('visibility-notify-event', self.__visibility_notify_cb)
-        self.connect('leave-notify-event', self.__leave_notify_event_cb)
-        self.connect('size-allocate', self.__size_allocate_cb)
+        click_controller = Gtk.GestureClick()
+        click_controller.set_button(0)  # listen to all buttons
+        click_controller.connect('released', self.__click_released_cb)
+        self.add_controller(click_controller)
 
-    def __size_allocate_cb(self, widget, allocation):
+        right_click_controller = Gtk.GestureClick()
+        right_click_controller.set_button(3)  # right-click only
+        right_click_controller.connect('pressed', self.__right_click_pressed_cb)
+        self.add_controller(right_click_controller)
+
+        motion_controller = Gtk.EventControllerMotion()
+        motion_controller.connect('motion', self.__motion_cb)
+        motion_controller.connect('leave', self.__leave_cb)
+        self.add_controller(motion_controller)
+
+    def do_size_allocate(self, width, height, baseline):
         ''' Load buffer after resize to circumvent race condition '''
+        Gtk.TextView.do_size_allocate(self, width, height, baseline)
         self.set_buffer(self._buffer)
         self._parent.resize_rb()
 
@@ -170,27 +178,22 @@ class TextBox(Gtk.TextView):
         self.set_size_request(_get_screen_width() - style.GRID_CELL_SIZE -
                               2 * style.DEFAULT_SPACING, -1)
 
-    def __leave_notify_event_cb(self, widget, event):
+    def __leave_cb(self, controller):
         self._mouse_detector.stop()
 
-    def __button_press_cb(self, widget, event):
-        if event.type == Gdk.EventType.BUTTON_PRESS and event.button == 3:
-            # To disable the standard textview popup
-            return True
+    def __right_click_pressed_cb(self, gesture, n_press, x, y):
+        # To disable the standard textview popup
+        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
 
     # Links can be activated by clicking.
-    def __event_after_cb(self, widget, event):
-        if event.type.value_name != 'GDK_BUTTON_RELEASE':
-            return False
+    def __click_released_cb(self, gesture, n_press, x, y):
+        bx, by = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET,
+                                              int(x), int(y))
+        iter_tags = self.get_iter_at_location(bx, by)
 
-        x, y = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET,
-                                            int(event.x), int(event.y))
-        iter_tags = self.get_iter_at_location(x, y)
-
-        if Gtk.check_version(3, 19, 8) is None:
+        if isinstance(iter_tags, tuple):
             if not iter_tags[0]:
-                return False
-
+                return
             iter_tags = iter_tags[1]
 
         for tag in iter_tags.get_tags():
@@ -199,15 +202,13 @@ class TextBox(Gtk.TextView):
             except AttributeError:
                 url = None
             if url is not None:
-                if event.button == 3:
+                button = gesture.get_current_button()
+                if button == 3:
                     palette = tag.palette
-                    xw, yw = self.get_toplevel().get_pointer()
                     palette.popup()
                 else:
                     self._show_via_journal(url)
                 break
-
-        return False
 
     def _show_via_journal(self, url):
         self.emit('open-on-journal', url)
@@ -224,7 +225,7 @@ class TextBox(Gtk.TextView):
         self.palette = None
         iter_tags = self.get_iter_at_location(x, y)
 
-        if Gtk.check_version(3, 19, 8) is None:
+        if isinstance(iter_tags, tuple):
             if not iter_tags[0]:
                 return False
 
@@ -246,41 +247,32 @@ class TextBox(Gtk.TextView):
         # and if one of them is a link, change the cursor to the 'hands' cursor
 
         hovering_over_link = self.check_url_hovering(x, y)
-        win = self.get_window(Gtk.TextWindowType.TEXT)
         if hovering_over_link:
-            win.set_cursor(self.hand_cursor)
+            self.set_cursor(self.hand_cursor)
             self._mouse_detector.start()
         else:
-            win.set_cursor(None)
+            self.set_cursor(None)
             self._mouse_detector.stop()
 
     def __mouse_slow_cb(self, widget):
-        x, y = self.get_pointer()
-        hovering_over_link = self.check_url_hovering(x, y)
-        if hovering_over_link:
-            if self.palette is not None:
-                xw, yw = self.get_toplevel().get_pointer()
-                self.palette.popup()
-                self._mouse_detector.stop()
-        else:
-            if self.palette is not None:
-                self.palette.popdown()
+        if hasattr(self, '_last_mouse_x'):
+            hovering_over_link = self.check_url_hovering(
+                self._last_mouse_x, self._last_mouse_y)
+            if hovering_over_link:
+                if self.palette is not None:
+                    self.palette.popup()
+                    self._mouse_detector.stop()
+            else:
+                if self.palette is not None:
+                    self.palette.popdown()
 
     # Update the cursor image if the pointer moved.
-    def __motion_notify_cb(self, widget, event):
-        x, y = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET,
-                                            int(event.x), int(event.y))
-        self.set_cursor_if_appropriate(x, y)
-        self.get_pointer()
-        return False
-
-    def __visibility_notify_cb(self, widget, event):
-        # Also update the cursor image if the window becomes visible
-        # (e.g. when a window covering it got iconified).
-        bx, by = self.window_to_buffer_coords(
-            Gtk.TextWindowType.WIDGET, 200, 200)
+    def __motion_cb(self, controller, x, y):
+        bx, by = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET,
+                                              int(x), int(y))
+        self._last_mouse_x = bx
+        self._last_mouse_y = by
         self.set_cursor_if_appropriate(bx, by)
-        return False
 
     def __palette_mouse_enter_cb(self, widget, event):
         self.handler_block(self.motion_notify_id)
