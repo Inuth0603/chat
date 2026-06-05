@@ -855,17 +855,15 @@ class _URLMenu(Palette):
         self.owns_clipboard = False
         self.url = self._url_check_protocol(url)
 
-        menu_box = Gtk.VBox()
+        menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.set_content(menu_box)
-        menu_box.show()
         self._content.set_margin_start(1)
         self._content.set_margin_end(1)
         self._content.set_margin_top(1)
         self._content.set_margin_bottom(1)
         menu_item = PaletteMenuItem(_('Copy to Clipboard'), 'edit-copy')
         menu_item.connect('activate', self._copy_to_clipboard_cb)
-        menu_box.pack_start(menu_item, False, False, 0)
-        menu_item.show()
+        menu_box.append(menu_item)
         self.props.invoker = ContentInvoker()
 
     def create_palette(self):
