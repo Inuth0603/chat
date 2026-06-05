@@ -308,12 +308,17 @@ class Chat(activity.Activity):
             path, hint, codes = smilies.THEME[i]
             code = codes[0]
 
-            # Use Gtk.Image directly with the SVG path so GTK4 vector-scales it sharply to our large size!
-            image = Gtk.Image.new_from_file(path)
-            image.set_size_request(pixel_size, pixel_size)
+            # Load at double resolution (128x128) to ensure sharpness on high-DPI screens
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(path, pixel_size * 2, pixel_size * 2)
+            texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+            
+            # Gtk.Picture allows us to display the large texture safely scaled down into logical pixels
+            picture = Gtk.Picture.new_for_paintable(texture)
+            picture.set_size_request(pixel_size, pixel_size)
+            picture.set_can_shrink(True)
             
             box = Gtk.Box()
-            box.append(image)
+            box.append(picture)
             gesture = Gtk.GestureClick.new()
             # Properly bind box and code to the lambda to avoid closure scope leaks
             gesture.connect('pressed', lambda g, n, dx, dy, b=box, c=code: self._add_smiley_to_entry(b, None, c))
