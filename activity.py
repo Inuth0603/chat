@@ -230,47 +230,33 @@ class Chat(activity.Activity):
 
     def _fixed_resize_cb(self, widget=None, rect=None):
         ''' If a toolbar opens or closes, we need to resize the vbox
-        holding out scrolling window. '''
+        holding our scrolling window. '''
         if self._has_alert:
             dy = style.GRID_CELL_SIZE
         else:
             dy = 0
 
-        if self._toolbar_expanded():
-            self.chatbox.set_size_request(
-                self._chat_width,
-                self._chat_height - style.GRID_CELL_SIZE - dy)
-            self._fixed.move(self._entry_grid, style.GRID_CELL_SIZE,
-                             self._chat_height - style.GRID_CELL_SIZE - dy)
-        else:
-            self.chatbox.set_size_request(self._chat_width,
-                                          self._chat_height - dy)
-            self._fixed.move(self._entry_grid, style.GRID_CELL_SIZE,
-                             self._chat_height - dy)
-
         self.chatbox.resize_conversation(dy)
 
     def _setup_canvas(self):
         ''' Create a canvas '''
-        self._fixed = Gtk.Fixed()
-        self._fixed.set_size_request(
-            (_get_screen_width()), (_get_screen_height()) - style.GRID_CELL_SIZE)
-        self.set_canvas(self._fixed)
-        self._fixed.show()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_canvas(self._vbox)
+        self._vbox.show()
 
         self._entry_widgets = self._make_entry_widgets()
-        self._fixed.put(self.chatbox, 0, 0)
+
+        self.chatbox.set_vexpand(True)
+        self.chatbox.set_hexpand(True)
+        self._vbox.append(self.chatbox)
         self.chatbox.show()
 
-        self._fixed.put(self._entry_grid, style.GRID_CELL_SIZE,
-                        self._chat_height)
+        self._vbox.append(self._entry_grid)
         self._entry_grid.show()
 
         # Gdk.Screen.get_default().connect('size-changed', self._configure_cb)
 
     def _configure_cb(self, event):
-        self._fixed.set_size_request(
-            (_get_screen_width()), (_get_screen_height()) - style.GRID_CELL_SIZE)
         self._entry_height = style.GRID_CELL_SIZE
         entry_width = (_get_screen_width()) - \
             2 * (self._entry_height + style.GRID_CELL_SIZE)
@@ -279,10 +265,6 @@ class Chat(activity.Activity):
             (_get_screen_width()) - 2 * style.GRID_CELL_SIZE,
             self._entry_height)
 
-        self._chat_height = (_get_screen_height()) - self._entry_height - \
-            style.GRID_CELL_SIZE
-        self._chat_width = (_get_screen_width())
-        self.chatbox.set_size_request(self._chat_width, self._chat_height)
         self.chatbox.resize_all()
 
         width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
@@ -539,11 +521,6 @@ class Chat(activity.Activity):
         self._entry_height = style.GRID_CELL_SIZE
         entry_width = (_get_screen_width()) - \
             2 * (self._entry_height + style.GRID_CELL_SIZE)
-        self._chat_height = (_get_screen_height()) - self._entry_height - \
-            style.GRID_CELL_SIZE
-        self._chat_width = (_get_screen_width())
-
-        self.chatbox.set_size_request(self._chat_width, self._chat_height)
 
         self._entry_grid = Gtk.Grid()
         self._entry_grid.set_size_request(
