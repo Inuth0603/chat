@@ -142,11 +142,10 @@ class TextBox(Gtk.TextView):
         self._mouse_detector = MouseSpeedDetector(200, 5)
         self._mouse_detector.connect('motion-slow', self.__mouse_slow_cb)
 
-        bg_html = bg_color.get_html()
         highlight_html = highlight_color.get_html()
-        css = ('textview text { background-color: %s; }'
+        css = ('textview, textview text { background: transparent; }'
                'textview text selection { background-color: %s; }'
-               % (bg_html, highlight_html))
+               % (highlight_html))
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(css.encode('utf-8'))
         self.get_style_context().add_provider(
