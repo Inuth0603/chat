@@ -142,17 +142,15 @@ class TextBox(Gtk.TextView):
         self._mouse_detector = MouseSpeedDetector(200, 5)
         self._mouse_detector.connect('motion-slow', self.__mouse_slow_cb)
 
-        self.modify_bg(0, bg_color.get_gdk_color())
-
-        rgba = Gdk.RGBA()
-        rgba.red, rgba.green, rgba.blue, rgba.alpha = \
-            highlight_color.get_rgba()
-        self.override_background_color(Gtk.StateFlags.SELECTED, rgba)
-
-        self.add_events(Gdk.EventMask.POINTER_MOTION_MASK |
-                        Gdk.EventMask.BUTTON_PRESS_MASK |
-                        Gdk.EventMask.BUTTON_RELEASE_MASK |
-                        Gdk.EventMask.LEAVE_NOTIFY_MASK)
+        bg_html = bg_color.get_html()
+        highlight_html = highlight_color.get_html()
+        css = ('textview text { background-color: %s; }'
+               'textview text selection { background-color: %s; }'
+               % (bg_html, highlight_html))
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(css.encode('utf-8'))
+        self.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.connect('event-after', self.__event_after_cb)
         self.connect('button-press-event', self.__button_press_cb)
