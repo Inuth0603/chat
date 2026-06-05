@@ -284,22 +284,22 @@ class Chat(activity.Activity):
         self._fixed_resize_cb()
 
     def _create_smiley_table(self, width):
-        pixel_size = (style.STANDARD_ICON_SIZE + style.LARGE_ICON_SIZE) / 2
+        # Use a generous size for modern screens
+        pixel_size = style.LARGE_ICON_SIZE
         spacing = style.DEFAULT_SPACING
-        button_size = pixel_size + spacing
-        smilies_columns = int(width / button_size)
-        pad = (width - smilies_columns * button_size) / 2
 
-        table = Gtk.Grid()
-        table.set_row_spacing(spacing)
-        table.set_column_spacing(spacing)
-        table.set_margin_start(int(pad))
-        table.set_margin_end(int(pad))
-        table.set_margin_top(int(pad))
-        table.set_margin_bottom(int(pad))
+        flowbox = Gtk.FlowBox()
+        flowbox.set_valign(Gtk.Align.START)
+        flowbox.set_halign(Gtk.Align.FILL)
+        flowbox.set_row_spacing(spacing)
+        flowbox.set_column_spacing(spacing)
+        flowbox.set_margin_start(spacing)
+        flowbox.set_margin_end(spacing)
+        flowbox.set_margin_top(spacing)
+        flowbox.set_margin_bottom(spacing)
+        flowbox.set_max_children_per_line(100)
+        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
 
-        x = 0
-        y = 0
         smilies.init()
         for i in range(len(smilies.THEME)):
             path, hint, codes = smilies.THEME[i]
@@ -315,16 +315,13 @@ class Chat(activity.Activity):
             # Properly bind box and code to the lambda to avoid closure scope leaks
             gesture.connect('pressed', lambda g, n, dx, dy, b=box, c=code: self._add_smiley_to_entry(b, None, c))
             box.add_controller(gesture)
-            table.attach(box, x, y, 1, 1)
+            
+            # FlowBox child wrapper handles the clicks nicely too, but we just append the box
+            flowbox.append(box)
             box.show()
 
-            x += 1
-            if x == smilies_columns:
-                y += 1
-                x = 0
-
         self.unbusy()
-        return table
+        return flowbox
 
     def _add_smiley_to_entry(self, icon, event, text):
         pos = self._entry.props.cursor_position
@@ -350,7 +347,8 @@ class Chat(activity.Activity):
         self._one_to_one_connection_ready_cb(bus_name, channel, conn)
 
     def _one_to_one_connection_ready_cb(self, bus_name, channel, conn):
-        '''Callback for Connection for one to one connection'''
+        '''We have a connection to the inviter, now ask for the text
+        to one connection'''
         text_channel = {}
         text_proxy = dbus.Bus().get_object(bus_name, channel)
         text_channel[TelepathyGLib.IFACE_CHANNEL] = \
@@ -360,6 +358,7 @@ class Chat(activity.Activity):
         text_channel[TelepathyGLib.IFACE_CHANNEL_INTERFACE_GROUP] = \
             dbus.Interface(
                 text_proxy, TelepathyGLib.IFACE_CHANNEL_INTERFACE_GROUP)
+
         self.text_channel = TextChannelWrapper(text_channel, conn)
         self.text_channel.set_received_callback(self._received_cb)
         self.text_channel.handle_pending_messages()
@@ -694,6 +693,14 @@ class Chat(activity.Activity):
         # Max height so it scrolls if too many smileys, but shrinks if few
         max_height = int((_get_screen_height()) - 4 * style.GRID_CELL_SIZE)
         self._smiley_table.set_max_content_height(max_height)
+
+        # We MUST use a dark background because many emojis are white line-art!
+        css_provider = Gtk.CssProvider()
+        bg_html = style.COLOR_BLACK.get_html()
+        css = f"scrolledwindow {{ background-color: {bg_html}; }}"
+        css_provider.load_from_data(css.encode('utf-8'))
+        self._smiley_table.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         table = self._create_smiley_table(width)
         self._smiley_table.set_child(table)
