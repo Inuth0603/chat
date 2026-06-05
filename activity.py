@@ -307,8 +307,25 @@ class Chat(activity.Activity):
             path, hint, codes = smilies.THEME[i]
             code = codes[0]
 
-            # Load at double resolution (128x128) to ensure sharpness on high-DPI screens
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(path, pixel_size * 2, pixel_size * 2)
+            # Load at double resolution (128x128) to ensure sharpness on high-DPI screens.
+            # CRITICAL: Older SVGs lack a viewBox, causing modern librsvg to refuse to scale them.
+            # We must dynamically inject a viewBox based on the width/height to force scaling!
+            import re
+            svg_data = open(path, 'rb').read().decode('utf-8', errors='ignore')
+            if 'viewBox' not in svg_data:
+                w_match = re.search(r'width="([0-9.]+)"', svg_data)
+                h_match = re.search(r'height="([0-9.]+)"', svg_data)
+                if w_match and h_match:
+                    w = w_match.group(1)
+                    h = h_match.group(1)
+                    svg_data = svg_data.replace('<svg', f'<svg viewBox="0 0 {w} {h}"', 1)
+            
+            loader = GdkPixbuf.PixbufLoader.new_with_type('svg')
+            loader.set_size(pixel_size * 2, pixel_size * 2)
+            loader.write(svg_data.encode('utf-8'))
+            loader.close()
+            pixbuf = loader.get_pixbuf()
+            
             texture = Gdk.Texture.new_for_pixbuf(pixbuf)
             
             # Gtk.Picture allows us to display the large texture safely scaled down into logical pixels
