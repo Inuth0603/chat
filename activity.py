@@ -912,7 +912,15 @@ class SmileyToolbar(Gtk.Box):
 
     def __init__(self, activity):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
-        self.add_css_class("toolbar")
+        
+        # Apply the native Sugar toolbar grey and white text using theme constants
+        css_provider = Gtk.CssProvider()
+        bg_color = style.COLOR_TOOLBAR_GREY.get_html()
+        fg_color = style.COLOR_WHITE.get_html()
+        css = f"box {{ background-color: {bg_color}; color: {fg_color}; }}"
+        css_provider.load_from_data(css.encode('utf-8'))
+        self.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self._activity = activity
         self._add_separator()
