@@ -112,7 +112,7 @@ class Chat(activity.Activity):
         self._activity_toolbar_button.show()
 
         self.search_entry = iconentry.IconEntry()
-        self.search_entry.set_size_request((_get_screen_width()) / 3, -1)
+        self.search_entry.set_size_request(int(_get_screen_width() / 3), -1)
         self.search_entry.set_icon_from_name(
             iconentry.ICON_ENTRY_PRIMARY, 'entry-search')
         self.search_entry.add_clear_button()
@@ -285,7 +285,10 @@ class Chat(activity.Activity):
         table = Gtk.Grid()
         table.set_row_spacing(spacing)
         table.set_column_spacing(spacing)
-        table.set_border_width(pad)
+        table.set_margin_start(int(pad))
+        table.set_margin_end(int(pad))
+        table.set_margin_top(int(pad))
+        table.set_margin_bottom(int(pad))
 
         queue = []
 
@@ -686,14 +689,20 @@ class Chat(activity.Activity):
         self._smiley_table = Gtk.ScrolledWindow()
         self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
                                       Gtk.PolicyType.AUTOMATIC)
-        self._smiley_table.modify_bg(
-            Gtk.StateType.NORMAL, style.COLOR_BLACK.get_gdk_color())
+
+        css_provider = Gtk.CssProvider()
+        bg_html = style.COLOR_BLACK.get_html()
+        css = f"scrolledwindow {{ background-color: {bg_html}; }}"
+        css_provider.load_from_data(css.encode('utf-8'))
+        self._smiley_table.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
         height = int((_get_screen_height()) - 4 * style.GRID_CELL_SIZE)
         self._smiley_table.set_size_request(width, height)
 
         table = self._create_smiley_table(width)
-        self._smiley_table.add_with_viewport(table)
-        table.show_all()
+        self._smiley_table.set_child(table)
+        table.show()
 
         grid.attach(self._smiley_table, 0, 1, 1, 1)
         self._smiley_table.show()
@@ -701,21 +710,26 @@ class Chat(activity.Activity):
         self._smiley_window = Gtk.ScrolledWindow()
         self._smiley_window.set_policy(Gtk.PolicyType.NEVER,
                                        Gtk.PolicyType.NEVER)
-        self._smiley_window.set_shadow_type(Gtk.ShadowType.ETCHED_IN)
+        self._smiley_window.set_has_frame(True)
         self._smiley_window.set_size_request(width, -1)
 
-        self._smiley_window.add_with_viewport(grid)
+        self._smiley_window.set_child(grid)
 
-        def _key_press_event_cb(widget, event):
-            if event.keyval == Gdk.KEY_Escape:
-                self._hide_smiley_window()
-                return True
-            return False
-        self.connect('key-press-event', _key_press_event_cb)
+        key_ctrl = Gtk.EventControllerKey.new()
+        key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
+        self._smiley_window.add_controller(key_ctrl)
 
         grid.show()
 
-        self._fixed.put(self._smiley_window, style.GRID_CELL_SIZE, 0)
+        self._smiley_window.set_halign(Gtk.Align.CENTER)
+        self._smiley_window.set_valign(Gtk.Align.START)
+        self._vbox.prepend(self._smiley_window)
+
+    def _smiley_key_press_cb(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape:
+            self._hide_smiley_window()
+            return True
+        return False
 
     def _show_smiley_window(self):
         if not hasattr(self, '_smiley_window'):
