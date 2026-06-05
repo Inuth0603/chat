@@ -716,20 +716,17 @@ class ChatBox(Gtk.ScrolledWindow):
             grid_internal.attach(message, 0, row, 1, 1)
             row += 1
 
-            align = Gtk.Alignment.new(xalign=0.0, yalign=0.0, xscale=1.0,
-                                      yscale=1.0)
             if rb.tail is None:
                 bottom_padding = style.zoom(7)
             else:
                 bottom_padding = style.zoom(35)
-            align.set_padding(style.zoom(7), bottom_padding, style.zoom(30),
-                              style.zoom(30))
+            grid_internal.set_margin_top(style.zoom(7))
+            grid_internal.set_margin_bottom(bottom_padding)
+            grid_internal.set_margin_start(style.zoom(30))
+            grid_internal.set_margin_end(style.zoom(30))
 
-            align.add(grid_internal)
+            rb.append(grid_internal)
             grid_internal.show()
-
-            rb.pack_start(align, True, True, 0)
-            align.show()
 
             self._conversation.attach(rb, 0, self._row_counter, 1, 1)
             rb.show()
@@ -759,12 +756,11 @@ class ChatBox(Gtk.ScrolledWindow):
                           style.COLOR_WHITE, style.COLOR_BUTTON_GREY, False,
                           None, timestamp_to_elapsed_string(timestamp_seconds))
         self._message_list.append(message)
-        box = Gtk.HBox()
-        align = Gtk.Alignment.new(
-            xalign=0.5, yalign=0.0, xscale=0.0, yscale=0.0)
-        box.pack_start(align, True, True, 0)
-        align.show()
-        align.add(message)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        message.set_halign(Gtk.Align.CENTER)
+        message.set_valign(Gtk.Align.START)
+        message.set_hexpand(False)
+        box.append(message)
         message.show()
         self._conversation.attach(box, 0, self._row_counter, 1, 1)
         box.show()
