@@ -678,17 +678,23 @@ class Chat(activity.Activity):
 
     def _create_smiley_window(self):
         grid = Gtk.Grid()
+        # Revert to original width calculation based on Sugar GRID_CELL_SIZE padding
         width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
 
         self._smiley_toolbar = SmileyToolbar(self)
-        height = style.GRID_CELL_SIZE
-        self._smiley_toolbar.set_size_request(width, height)
+        self._smiley_toolbar.set_size_request(width, style.GRID_CELL_SIZE)
         grid.attach(self._smiley_toolbar, 0, 0, 1, 1)
         self._smiley_toolbar.show()
 
         self._smiley_table = Gtk.ScrolledWindow()
         self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
                                       Gtk.PolicyType.AUTOMATIC)
+        
+        self._smiley_table.set_propagate_natural_height(True)
+        self._smiley_table.set_propagate_natural_width(True)
+        # Max height so it scrolls if too many smileys, but shrinks if few
+        max_height = int((_get_screen_height()) - 4 * style.GRID_CELL_SIZE)
+        self._smiley_table.set_max_content_height(max_height)
 
         css_provider = Gtk.CssProvider()
         bg_html = style.COLOR_BLACK.get_html()
@@ -696,9 +702,6 @@ class Chat(activity.Activity):
         css_provider.load_from_data(css.encode('utf-8'))
         self._smiley_table.get_style_context().add_provider(
             css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
-        height = int((_get_screen_height()) - 4 * style.GRID_CELL_SIZE)
-        self._smiley_table.set_size_request(width, height)
 
         table = self._create_smiley_table(width)
         self._smiley_table.set_child(table)
@@ -712,7 +715,6 @@ class Chat(activity.Activity):
         self._smiley_window.set_has_arrow(False)
         self._smiley_window.set_autohide(False) # we manage it manually
         
-        # We need a fixed width for the popover to match the old design
         grid.set_size_request(width, -1)
         self._smiley_window.set_child(grid)
         self._smiley_window.set_parent(self.smiley_button)
