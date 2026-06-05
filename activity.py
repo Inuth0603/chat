@@ -284,44 +284,50 @@ class Chat(activity.Activity):
         self._fixed_resize_cb()
 
     def _create_smiley_table(self, width):
-        # Double the GTK3 size to account for high-DPI scaling down the raw pixbufs
-        pixel_size = (style.STANDARD_ICON_SIZE + style.LARGE_ICON_SIZE)
-        spacing = style.DEFAULT_SPACING
+        # In GTK4, pixel sizing via style constants can fail due to DPI scale differences.
+        # Use exactly 64 logical pixels, which perfectly replicates the size of the GTK3 screenshot!
+        pixel_size = 64
+        spacing = 8
+        button_size = pixel_size + spacing
+        smilies_columns = max(1, int(width / button_size))
+        pad = (width - smilies_columns * button_size) / 2
 
-        flowbox = Gtk.FlowBox()
-        flowbox.set_valign(Gtk.Align.START)
-        flowbox.set_halign(Gtk.Align.FILL)
-        flowbox.set_row_spacing(spacing)
-        flowbox.set_column_spacing(spacing)
-        flowbox.set_margin_start(spacing)
-        flowbox.set_margin_end(spacing)
-        flowbox.set_margin_top(spacing)
-        flowbox.set_margin_bottom(spacing)
-        flowbox.set_max_children_per_line(100)
-        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        table = Gtk.Grid()
+        table.set_row_spacing(spacing)
+        table.set_column_spacing(spacing)
+        # Add padding to perfectly center the grid block, mimicking GTK3!
+        table.set_margin_start(int(pad))
+        table.set_margin_end(int(pad))
+        table.set_margin_top(spacing)
+        table.set_margin_bottom(spacing)
 
+        x = 0
+        y = 0
         smilies.init()
         for i in range(len(smilies.THEME)):
             path, hint, codes = smilies.THEME[i]
             code = codes[0]
 
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(path,
-                                                            int(pixel_size),
-                                                            int(pixel_size))
-            image = Gtk.Image.new_from_pixbuf(pixbuf)
+            # Use Gtk.Image directly with the SVG path so GTK4 vector-scales it sharply to our large size!
+            image = Gtk.Image.new_from_file(path)
+            image.set_size_request(pixel_size, pixel_size)
+            
             box = Gtk.Box()
             box.append(image)
             gesture = Gtk.GestureClick.new()
             # Properly bind box and code to the lambda to avoid closure scope leaks
             gesture.connect('pressed', lambda g, n, dx, dy, b=box, c=code: self._add_smiley_to_entry(b, None, c))
             box.add_controller(gesture)
-            
-            # FlowBox child wrapper handles the clicks nicely too, but we just append the box
-            flowbox.append(box)
+            table.attach(box, x, y, 1, 1)
             box.show()
 
+            x += 1
+            if x == smilies_columns:
+                y += 1
+                x = 0
+
         self.unbusy()
-        return flowbox
+        return table
 
     def _create_smiley_window(self):
         self._smiley_window = Gtk.Grid()
