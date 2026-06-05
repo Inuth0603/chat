@@ -895,6 +895,7 @@ class SmileyToolbar(Gtk.Box):
 
     def __init__(self, activity):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        self.add_css_class("toolbar")
 
         self._activity = activity
         self._add_separator()
