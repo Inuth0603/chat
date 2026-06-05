@@ -284,8 +284,8 @@ class Chat(activity.Activity):
         self._fixed_resize_cb()
 
     def _create_smiley_table(self, width):
-        # Use a generous size for modern screens
-        pixel_size = style.LARGE_ICON_SIZE
+        # Double the GTK3 size to account for high-DPI scaling down the raw pixbufs
+        pixel_size = (style.STANDARD_ICON_SIZE + style.LARGE_ICON_SIZE)
         spacing = style.DEFAULT_SPACING
 
         flowbox = Gtk.FlowBox()
@@ -322,6 +322,55 @@ class Chat(activity.Activity):
 
         self.unbusy()
         return flowbox
+
+    def _create_smiley_window(self):
+        self._smiley_window = Gtk.Grid()
+        
+        # Apply black background to the ENTIRE smiley picker window
+        self._smiley_window.add_css_class("smiley-picker")
+        css_provider = Gtk.CssProvider()
+        bg_html = style.COLOR_BLACK.get_html()
+        css = f".smiley-picker {{ background-color: {bg_html}; }}"
+        css_provider.load_from_data(css.encode('utf-8'))
+        self._smiley_window.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        # Revert to original width calculation based on Sugar GRID_CELL_SIZE padding
+        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
+
+        self._smiley_toolbar = SmileyToolbar(self)
+        self._smiley_toolbar.set_size_request(width, style.GRID_CELL_SIZE)
+        self._smiley_window.attach(self._smiley_toolbar, 0, 0, 1, 1)
+        self._smiley_toolbar.show()
+
+        self._smiley_table = Gtk.ScrolledWindow()
+        self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
+                                      Gtk.PolicyType.AUTOMATIC)
+        
+        # Expand the table vertically to push the black background down to the entry bar
+        self._smiley_table.set_vexpand(True)
+        self._smiley_table.set_hexpand(True)
+
+        table = self._create_smiley_table(width)
+        self._smiley_table.set_child(table)
+        self._smiley_window.attach(self._smiley_table, 0, 1, 1, 1)
+        self._smiley_table.show()
+        table.show()
+
+        key_ctrl = Gtk.EventControllerKey.new()
+        key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
+        self._smiley_window.add_controller(key_ctrl)
+
+        self._smiley_window.show()
+        
+        # Add the smiley window to the main stack
+        self._main_stack.add_named(self._smiley_window, "smiley_window")
+
+    def _smiley_key_press_cb(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape:
+            self._hide_smiley_window()
+            return True
+        return False
 
     def _add_smiley_to_entry(self, icon, event, text):
         pos = self._entry.props.cursor_position
@@ -674,49 +723,6 @@ class Chat(activity.Activity):
         self.element.set_property('uri', 'file://%s' % SOUNDS[event])
         self.element.set_state(Gst.State.PLAYING)
 
-    def _create_smiley_window(self):
-        self._smiley_window = Gtk.Grid()
-        # Revert to original width calculation based on Sugar GRID_CELL_SIZE padding
-        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
-
-        self._smiley_toolbar = SmileyToolbar(self)
-        self._smiley_toolbar.set_size_request(width, style.GRID_CELL_SIZE)
-        self._smiley_window.attach(self._smiley_toolbar, 0, 0, 1, 1)
-        self._smiley_toolbar.show()
-
-        self._smiley_table = Gtk.ScrolledWindow()
-        self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
-                                      Gtk.PolicyType.AUTOMATIC)
-        
-        self._smiley_table.set_propagate_natural_height(True)
-        self._smiley_table.set_propagate_natural_width(True)
-        # Max height so it scrolls if too many smileys, but shrinks if few
-        max_height = int((_get_screen_height()) - 4 * style.GRID_CELL_SIZE)
-        self._smiley_table.set_max_content_height(max_height)
-
-        # We MUST use a dark background because many emojis are white line-art!
-        css_provider = Gtk.CssProvider()
-        bg_html = style.COLOR_BLACK.get_html()
-        css = f"scrolledwindow {{ background-color: {bg_html}; }}"
-        css_provider.load_from_data(css.encode('utf-8'))
-        self._smiley_table.get_style_context().add_provider(
-            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
-        table = self._create_smiley_table(width)
-        self._smiley_table.set_child(table)
-        table.show()
-
-        self._smiley_window.attach(self._smiley_table, 0, 1, 1, 1)
-        self._smiley_table.show()
-
-        key_ctrl = Gtk.EventControllerKey.new()
-        key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
-        self._smiley_window.add_controller(key_ctrl)
-
-        self._smiley_window.show()
-        
-        # Add the smiley window to the main stack
-        self._main_stack.add_named(self._smiley_window, "smiley_window")
 
     def _smiley_key_press_cb(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape:
