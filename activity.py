@@ -284,10 +284,9 @@ class Chat(activity.Activity):
         self._fixed_resize_cb()
 
     def _create_smiley_table(self, width):
-        # In GTK4, pixel sizing via style constants can fail due to DPI scale differences.
-        # Use exactly 64 logical pixels, which perfectly replicates the size of the GTK3 screenshot!
-        pixel_size = 64
-        spacing = 8
+        # Use the exact size calculation from GTK3 so the emojis scale correctly with the Sugar theme
+        pixel_size = int((style.STANDARD_ICON_SIZE + style.LARGE_ICON_SIZE) / 2)
+        spacing = style.DEFAULT_SPACING
         button_size = pixel_size + spacing
         smilies_columns = max(1, int(width / button_size))
 
@@ -349,10 +348,11 @@ class Chat(activity.Activity):
         self._smiley_toolbar.show()
 
         self._smiley_table = Gtk.ScrolledWindow()
+        # Force the vertical scrollbar to be permanently visible like GTK3
         self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
-                                      Gtk.PolicyType.AUTOMATIC)
+                                      Gtk.PolicyType.ALWAYS)
         
-        # Disable overlay scrolling so the scrollbar is permanently visible like GTK3
+        # Disable overlay scrolling so the scrollbar doesn't autohide
         self._smiley_table.set_overlay_scrolling(False)
         
         # Apply the black CSS strictly to the scroll area (like GTK3), not the toolbar!
