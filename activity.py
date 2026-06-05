@@ -707,23 +707,21 @@ class Chat(activity.Activity):
         grid.attach(self._smiley_table, 0, 1, 1, 1)
         self._smiley_table.show()
 
-        self._smiley_window = Gtk.ScrolledWindow()
-        self._smiley_window.set_policy(Gtk.PolicyType.NEVER,
-                                       Gtk.PolicyType.NEVER)
-        self._smiley_window.set_has_frame(True)
-        self._smiley_window.set_size_request(width, -1)
-
+        self._smiley_window = Gtk.Popover()
+        self._smiley_window.set_position(Gtk.PositionType.TOP)
+        self._smiley_window.set_has_arrow(False)
+        self._smiley_window.set_autohide(False) # we manage it manually
+        
+        # We need a fixed width for the popover to match the old design
+        grid.set_size_request(width, -1)
         self._smiley_window.set_child(grid)
+        self._smiley_window.set_parent(self.smiley_button)
 
         key_ctrl = Gtk.EventControllerKey.new()
         key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
         self._smiley_window.add_controller(key_ctrl)
 
         grid.show()
-
-        self._smiley_window.set_halign(Gtk.Align.CENTER)
-        self._smiley_window.set_valign(Gtk.Align.START)
-        self._vbox.prepend(self._smiley_window)
 
     def _smiley_key_press_cb(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape:
@@ -735,11 +733,11 @@ class Chat(activity.Activity):
         if not hasattr(self, '_smiley_window'):
             self.busy()
             self._create_smiley_window()
-        self._smiley_window.show()
+        self._smiley_window.popup()
 
     def _hide_smiley_window(self):
         if hasattr(self, '_smiley_window'):
-            self._smiley_window.hide()
+            self._smiley_window.popdown()
 
 
 class TextChannelWrapper(object):
