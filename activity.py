@@ -274,11 +274,46 @@ class Chat(activity.Activity):
         self._vbox.append(self._entry_grid)
         self._entry_grid.show()
 
-        self.connect('notify::default-width', self._on_window_size_changed)
-        self.connect('notify::default-height', self._on_window_size_changed)
+        self.connect('notify::default-width', self._configure_cb)
+        self.connect('notify::default-height', self._configure_cb)
 
-    def _on_window_size_changed(self, *args):
+    def _configure_cb(self, *args):
+        self._entry_height = style.GRID_CELL_SIZE
+        entry_width = int(_get_screen_width() - 2 * (self._entry_height + style.GRID_CELL_SIZE))
+        self._entry.set_size_request(entry_width, self._entry_height)
+        self._entry_grid.set_size_request(int(_get_screen_width() - 2 * style.GRID_CELL_SIZE), self._entry_height)
+
+        self._chat_width = int(_get_screen_width() - 2 * style.GRID_CELL_SIZE)
+        self._chat_height = int(_get_screen_height() - (self._entry_height + 2 * style.GRID_CELL_SIZE))
+        self.chatbox.set_size_request(self._chat_width, self._chat_height)
+
         self.chatbox.resize_all()
+        
+        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
+        height = int((_get_screen_height()) - 5 * style.GRID_CELL_SIZE)
+        if hasattr(self, '_smiley_table'):
+            self._smiley_table.set_size_request(width, height)
+            self._smiley_toolbar.set_size_request(width, -1)
+
+        self._fixed_resize_cb()
+
+    def _fixed_resize_cb(self, widget=None, rect=None):
+        ''' If a toolbar opens or closes, we need to resize the vbox
+        holding our scrolling window. '''
+        if self._has_alert:
+            dy = style.GRID_CELL_SIZE
+        else:
+            dy = 0
+
+        if self._toolbar_expanded():
+            dy += style.GRID_CELL_SIZE
+
+        self.chatbox.resize_conversation(dy)
+
+    def _toolbar_expanded(self):
+        if hasattr(self, '_activity_toolbar_button') and self._activity_toolbar_button.is_expanded():
+            return True
+        return False
 
     def _create_smiley_table(self, width):
         # Use the exact size calculation from GTK3 so the emojis scale correctly with the Sugar theme
@@ -645,6 +680,11 @@ class Chat(activity.Activity):
         #     self._entry.set_sensitive(False)
         #     self.smiley_button.set_sensitive(False)
         #     self.send_button.set_sensitive(False)
+
+        self._chat_width = int(_get_screen_width() - 2 * style.GRID_CELL_SIZE)
+        self._chat_height = int(_get_screen_height() - \
+            (self._entry_height + 2 * style.GRID_CELL_SIZE))
+        self.chatbox.set_size_request(self._chat_width, self._chat_height)
 
     def _clear_icon_cb(self, entry, icon_pos):
         self._entry.set_text("")
