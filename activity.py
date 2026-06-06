@@ -272,7 +272,8 @@ class Chat(activity.Activity):
         self._entry_grid.show()
 
         display = Gdk.Display.get_default()
-        display.connect('monitors-changed', self._configure_cb)
+        if display:
+            display.get_monitors().connect('items-changed', self._configure_cb)
         self.connect('notify::default-width', self._configure_cb)
 
     def _configure_cb(self, *args):
