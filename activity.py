@@ -256,7 +256,7 @@ class Chat(activity.Activity):
         self.set_canvas(self._vbox)
         self._vbox.show()
 
-        self._entry_widgets = self._make_entry_widgets()
+        self._make_entry_widgets()
 
         self.chatbox.set_vexpand(True)
         self.chatbox.set_hexpand(True)
@@ -307,6 +307,9 @@ class Chat(activity.Activity):
 
         if self._toolbar_expanded():
             dy += style.GRID_CELL_SIZE
+
+        if hasattr(self, '_chat_width') and hasattr(self, '_chat_height'):
+            self.chatbox.set_size_request(self._chat_width, self._chat_height - dy)
 
         self.chatbox.resize_conversation(dy)
 
