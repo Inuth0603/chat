@@ -378,6 +378,13 @@ class ChatBox(Gtk.ScrolledWindow):
         self._dy = 0
 
         evbox = Gtk.Box()
+        evbox.add_css_class("chatbox-white-bg")
+        
+        provider = Gtk.CssProvider()
+        provider.load_from_data(b".chatbox-white-bg { background-color: white; }")
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
         evbox.append(self._conversation)
         self._conversation.show()
 
@@ -690,10 +697,6 @@ class ChatBox(Gtk.ScrolledWindow):
 
             grid_internal = Gtk.Grid()
             grid_internal.set_row_spacing(0)
-            grid_internal.set_margin_start(style.DEFAULT_PADDING)
-            grid_internal.set_margin_end(style.DEFAULT_PADDING)
-            grid_internal.set_margin_top(style.DEFAULT_PADDING)
-            grid_internal.set_margin_bottom(style.DEFAULT_PADDING)
             grid_internal.set_size_request(
                 _get_screen_width() - style.GRID_CELL_SIZE, -1)
             self._grid_list.append(grid_internal)
@@ -872,29 +875,8 @@ class _URLMenu(Palette):
 
     def _copy_to_clipboard_cb(self, menuitem):
         logging.debug('Copy %s to clipboard', self.url)
-        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        targets = [('text/uri-list', 0, 0), ('UTF8_STRING', 0, 1)]
-
-        if not clipboard.set_with_data(targets, self._clipboard_data_get_cb,
-                                       self._clipboard_clear_cb, (self.url)):
-            logging.debug('GtkClipboard.set_with_data failed!')
-        else:
-            self.owns_clipboard = True
-
-    def _clipboard_data_get_cb(self, clipboard, selection, info, data):
-        logging.debug('_clipboard_data_get_cb data=%s target=%s', data,
-                      selection.target)
-        if selection.target in ['text/uri-list']:
-            if not selection.set_uris([data]):
-                logging.debug('failed to set_uris')
-        else:
-            logging.debug('not uri')
-            if not selection.set_text(data):
-                logging.debug('failed to set_text')
-
-    def _clipboard_clear_cb(self, clipboard, data):
-        logging.debug('clipboard_clear_cb')
-        self.owns_clipboard = False
+        clipboard = Gdk.Display.get_default().get_clipboard()
+        clipboard.set_text(self.url)
 
     def _url_check_protocol(self, url):
         '''Check that the url has a protocol, otherwise prepend https://
