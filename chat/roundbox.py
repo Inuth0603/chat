@@ -36,6 +36,12 @@ class RoundBox(Gtk.Box):
         self.background_color = None
 
     def append(self, child):
+        # Replicate GTK3 __add_cb border padding
+        padding = style.zoom(5)
+        child.set_margin_start(child.get_margin_start() + padding)
+        child.set_margin_end(child.get_margin_end() + padding)
+        child.set_margin_top(child.get_margin_top() + padding)
+        child.set_margin_bottom(child.get_margin_bottom() + padding)
         super().append(child)
 
     def pack_start(self, child, expand, fill, padding):
