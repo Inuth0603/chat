@@ -120,7 +120,7 @@ class Chat(activity.Activity):
         self.search_entry.connect('changed', self._search_entry_activate_cb)
 
         key_ctrl = Gtk.EventControllerKey.new()
-        key_ctrl.connect("key-pressed", self._search_entry_key_press_cb)
+        key_ctrl.connect("key-pressed", self._window_key_press_cb)
         self.add_controller(key_ctrl)
 
         self._search_item = Gtk.Box()
@@ -181,14 +181,21 @@ class Chat(activity.Activity):
                     _('Please wait for a connection before starting to chat.')
             self.connect('shared', self._shared_cb)
 
-    def _search_entry_key_press_cb(self, controller, keyval, keycode, state):
+    def _window_key_press_cb(self, controller, keyval, keycode, state):
         keyname = Gdk.keyval_name(keyval).lower()
         if keyname == 'f':
             if Gdk.ModifierType.CONTROL_MASK & state:
                 self.search_entry.grab_focus()
+                return True
         elif keyname == 'escape':
+            if hasattr(self, '_main_stack') and \
+                    self._main_stack.get_visible_child_name() == "smiley_window":
+                self._hide_smiley_window()
+                return True
             self.search_entry.props.text = ''
             self._entry.grab_focus()
+            return True
+        return False
 
     def _search_entry_on_new_message_cb(self, chatbox):
         self._search_entry_activate_cb(self.search_entry)
@@ -264,8 +271,9 @@ class Chat(activity.Activity):
         self._vbox.append(self._entry_grid)
         self._entry_grid.show()
 
+        display = Gdk.Display.get_default()
+        display.connect('monitors-changed', self._configure_cb)
         self.connect('notify::default-width', self._configure_cb)
-        self.connect('notify::default-height', self._configure_cb)
 
     def _configure_cb(self, *args):
         self._entry_height = style.GRID_CELL_SIZE
@@ -422,10 +430,6 @@ class Chat(activity.Activity):
         table.show()
 
         self._smiley_window.set_focusable(True)
-
-        key_ctrl = Gtk.EventControllerKey.new()
-        key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
-        self.add_controller(key_ctrl)
 
         self._smiley_window.show()
         
@@ -776,13 +780,6 @@ class Chat(activity.Activity):
         self.element.set_property('uri', 'file://%s' % SOUNDS[event])
         self.element.set_state(Gst.State.PLAYING)
 
-
-    def _smiley_key_press_cb(self, controller, keyval, keycode, state):
-        if hasattr(self, '_main_stack') and self._main_stack.get_visible_child_name() == "smiley_window":
-            if keyval == Gdk.KEY_Escape:
-                self._hide_smiley_window()
-                return True
-        return False
 
     def _show_smiley_window(self):
         if not hasattr(self, '_smiley_window'):
