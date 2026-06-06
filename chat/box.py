@@ -116,7 +116,7 @@ class TextBox(Gtk.TextView):
             'name', foreground=name_color.get_html(), weight=Pango.Weight.BOLD)
         self._fg_tag = self._buffer.create_tag(
             'foreground_color', foreground=text_color.get_html())
-        self._subscript_tag = self.get_buffer().create_tag(
+        self._subscript_tag = self._buffer.create_tag(
             'subscript', foreground=text_color.get_html(),
             rise=-7 * Pango.SCALE)  # in pixels
 
@@ -139,6 +139,7 @@ class TextBox(Gtk.TextView):
         self.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
 
         self.palette = None
+        self._deferred_resize_id = None
 
         self._mouse_detector = MouseSpeedDetector(200, 5)
         self._mouse_detector.connect('motion-slow', self.__mouse_slow_cb)
@@ -167,13 +168,16 @@ class TextBox(Gtk.TextView):
     def do_size_allocate(self, width, height, baseline):
         ''' Load buffer after resize to circumvent race condition '''
         Gtk.TextView.do_size_allocate(self, width, height, baseline)
-        GLib.idle_add(self.__deferred_resize)
+        if not self._deferred_resize_id:
+            self._deferred_resize_id = GLib.idle_add(self.__deferred_resize)
 
     def __deferred_resize(self):
-        if not hasattr(self, '_parent') or self._parent is None:
+        self._deferred_resize_id = None
+        if not self.get_root():
             return GLib.SOURCE_REMOVE
         self.set_buffer(self._buffer)
-        self._parent.resize_rb()
+        if hasattr(self, '_parent') and self._parent is not None:
+            self._parent.resize_rb()
         return GLib.SOURCE_REMOVE
 
     def resize_box(self):
