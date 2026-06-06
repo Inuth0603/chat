@@ -32,28 +32,12 @@ from gi.repository import Gst
 
 OSK_HEIGHT = [400, 300]
 SLASH = '-x-SLASH-x-'  # slash safe encoding
-
 import logging
 import json
 import os
 import time
 import dbus
-
-def _get_screen_width():
-    display = Gdk.Display.get_default()
-    if display:
-        monitors = display.get_monitors()
-        if monitors and monitors.get_n_items() > 0:
-            return monitors.get_item(0).get_geometry().width
-    return 1200
-
-def _get_screen_height():
-    display = Gdk.Display.get_default()
-    if display:
-        monitors = display.get_monitors()
-        if monitors and monitors.get_n_items() > 0:
-            return monitors.get_item(0).get_geometry().height
-    return 900
+import re
 from gettext import gettext as _
 
 from sugar4.graphics import style
@@ -262,27 +246,6 @@ class Chat(activity.Activity):
         self._vbox.append(self._entry_grid)
         self._entry_grid.show()
 
-        # Gdk.Screen.get_default().connect('size-changed', self._configure_cb)
-
-    def _configure_cb(self, event):
-        self._entry_height = style.GRID_CELL_SIZE
-        entry_width = (_get_screen_width()) - \
-            2 * (self._entry_height + style.GRID_CELL_SIZE)
-        self._entry.set_size_request(entry_width, self._entry_height)
-        self._entry_grid.set_size_request(
-            (_get_screen_width()) - 2 * style.GRID_CELL_SIZE,
-            self._entry_height)
-
-        self.chatbox.resize_all()
-
-        width = int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE)
-        height = int((_get_screen_height()) - 5 * style.GRID_CELL_SIZE)
-        self._smiley_table.set_size_request(width, height)
-        self._smiley_toolbar.set_size_request(width, -1)
-        self._smiley_window.set_size_request(width, -1)
-
-        self._fixed_resize_cb()
-
     def _create_smiley_table(self, width):
         # Use the exact size calculation from GTK3 so the emojis scale correctly with the Sugar theme
         pixel_size = int((style.STANDARD_ICON_SIZE + style.LARGE_ICON_SIZE) / 2)
@@ -300,21 +263,24 @@ class Chat(activity.Activity):
         table.set_margin_top(spacing)
         table.set_margin_bottom(spacing)
 
-        x = 0
-        y = 0
-        smilies.init()
-        for i in range(len(smilies.THEME)):
-            path, hint, codes = smilies.THEME[i]
-            code = codes[0]
+        queue = []
+
+        def _create_smiley_icon_idle_cb():
+            try:
+                x, y, path, code = queue.pop()
+            except IndexError:
+                self.unbusy()
+                return False
 
             # Load at double resolution (128x128) to ensure sharpness on high-DPI screens.
             # CRITICAL: Older SVGs lack a viewBox, causing modern librsvg to refuse to scale them.
             # We must dynamically inject a viewBox based on the width/height to force scaling!
-            import re
-            svg_data = open(path, 'rb').read().decode('utf-8', errors='ignore')
+            with open(path, 'rb') as f:
+                svg_data = f.read().decode('utf-8', errors='ignore')
+                
             if 'viewBox' not in svg_data:
-                w_match = re.search(r'width="([0-9.]+)"', svg_data)
-                h_match = re.search(r'height="([0-9.]+)"', svg_data)
+                w_match = re.search(r'(?i)width="([0-9.]+)[a-z]*"', svg_data)
+                h_match = re.search(r'(?i)height="([0-9.]+)[a-z]*"', svg_data)
                 if w_match and h_match:
                     w = w_match.group(1)
                     h = h_match.group(1)
@@ -327,6 +293,7 @@ class Chat(activity.Activity):
             pixbuf = loader.get_pixbuf()
             
             texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+            del pixbuf # Free pixbuf memory early
             
             # Gtk.Picture allows us to display the large texture safely scaled down into logical pixels
             picture = Gtk.Picture.new_for_paintable(texture)
@@ -341,13 +308,22 @@ class Chat(activity.Activity):
             box.add_controller(gesture)
             table.attach(box, x, y, 1, 1)
             box.show()
+            return True
+
+        x = 0
+        y = 0
+        smilies.init()
+        for i in range(len(smilies.THEME)):
+            path, hint, codes = smilies.THEME[i]
+            queue.append([x, y, path, codes[0]])
 
             x += 1
             if x == smilies_columns:
                 y += 1
                 x = 0
 
-        self.unbusy()
+        queue.reverse()
+        GLib.idle_add(_create_smiley_icon_idle_cb)
         return table
 
     def _create_smiley_window(self):
@@ -377,8 +353,8 @@ class Chat(activity.Activity):
         bg_html = style.COLOR_BLACK.get_html()
         css = f"scrolledwindow {{ background-color: {bg_html}; }}"
         css_provider.load_from_data(css.encode('utf-8'))
-        self._smiley_table.get_style_context().add_provider(
-            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         
         self._smiley_table.set_vexpand(True)
         self._smiley_table.set_hexpand(True)
@@ -395,14 +371,7 @@ class Chat(activity.Activity):
 
         self._smiley_window.show()
         
-        # Add the smiley window to the main stack
         self._main_stack.add_named(self._smiley_window, "smiley_window")
-
-    def _smiley_key_press_cb(self, controller, keyval, keycode, state):
-        if keyval == Gdk.KEY_Escape:
-            self._hide_smiley_window()
-            return True
-        return False
 
     def _add_smiley_to_entry(self, icon, event, text):
         pos = self._entry.props.cursor_position
@@ -643,12 +612,15 @@ class Chat(activity.Activity):
         self._entry_grid.attach(self.send_button, 2, 0, 1, 1)
         self.send_button.show()
 
+        # TODO: Re-enable once shared-activity detection is fixed
+        # Disabled because get_shared() returns False prematurely on init,
+        # causing the entry and buttons to be permanently disabled during local usage.
         # if not self.get_shared():
         #     self._entry.set_sensitive(False)
         #     self.smiley_button.set_sensitive(False)
         #     self.send_button.set_sensitive(False)
 
-    def _clear_icon_cb(self, entry, icon_pos, event):
+    def _clear_icon_cb(self, entry, icon_pos):
         self._entry.set_text("")
 
     def _get_icon_pixbuf(self, name):
@@ -919,8 +891,8 @@ class SmileyToolbar(Gtk.Box):
         fg_color = style.COLOR_WHITE.get_html()
         css = f"box {{ background-color: {bg_color}; color: {fg_color}; }}"
         css_provider.load_from_data(css.encode('utf-8'))
-        self.get_style_context().add_provider(
-            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self._activity = activity
         self._add_separator()
