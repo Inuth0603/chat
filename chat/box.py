@@ -143,9 +143,10 @@ class TextBox(Gtk.TextView):
         self._mouse_detector.connect('motion-slow', self.__mouse_slow_cb)
 
         highlight_html = highlight_color.get_html()
-        css = ('textview, textview text { background: transparent; }'
+        bg_html = bg_color.get_html()
+        css = ('textview, textview text { background-color: %s; }'
                'textview text selection { background-color: %s; }'
-               % (highlight_html))
+               % (bg_html, highlight_html))
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(css.encode('utf-8'))
         self.get_style_context().add_provider(
@@ -153,13 +154,9 @@ class TextBox(Gtk.TextView):
 
         click_controller = Gtk.GestureClick()
         click_controller.set_button(0)  # listen to all buttons
+        click_controller.connect('pressed', self.__click_pressed_cb)
         click_controller.connect('released', self.__click_released_cb)
         self.add_controller(click_controller)
-
-        right_click_controller = Gtk.GestureClick()
-        right_click_controller.set_button(3)  # right-click only
-        right_click_controller.connect('pressed', self.__right_click_pressed_cb)
-        self.add_controller(right_click_controller)
 
         motion_controller = Gtk.EventControllerMotion()
         motion_controller.connect('motion', self.__motion_cb)
@@ -180,9 +177,10 @@ class TextBox(Gtk.TextView):
     def __leave_cb(self, controller):
         self._mouse_detector.stop()
 
-    def __right_click_pressed_cb(self, gesture, n_press, x, y):
-        # To disable the standard textview popup
-        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+    def __click_pressed_cb(self, gesture, n_press, x, y):
+        if gesture.get_current_button() == 3:
+            # To disable the standard textview popup
+            gesture.set_state(Gtk.EventSequenceState.CLAIMED)
 
     # Links can be activated by clicking.
     def __click_released_cb(self, gesture, n_press, x, y):
@@ -691,6 +689,11 @@ class ChatBox(Gtk.ScrolledWindow):
 
             grid_internal = Gtk.Grid()
             grid_internal.set_row_spacing(0)
+            grid_internal.set_hexpand(True)
+            grid_internal.set_margin_start(style.DEFAULT_PADDING)
+            grid_internal.set_margin_end(style.DEFAULT_PADDING)
+            grid_internal.set_margin_top(style.DEFAULT_PADDING)
+            grid_internal.set_margin_bottom(style.DEFAULT_PADDING)
             grid_internal.set_size_request(
                 _get_screen_width() - style.GRID_CELL_SIZE, -1)
             self._grid_list.append(grid_internal)
@@ -713,17 +716,22 @@ class ChatBox(Gtk.ScrolledWindow):
             grid_internal.attach(message, 0, row, 1, 1)
             row += 1
 
+            align_box = Gtk.Box()
+            align_box.set_hexpand(True)
             if rb.tail is None:
                 bottom_padding = style.zoom(7)
             else:
                 bottom_padding = style.zoom(35)
-            grid_internal.set_margin_top(style.zoom(7))
-            grid_internal.set_margin_bottom(bottom_padding)
-            grid_internal.set_margin_start(style.zoom(30))
-            grid_internal.set_margin_end(style.zoom(30))
-
-            rb.append(grid_internal)
+            align_box.set_margin_top(style.zoom(7))
+            align_box.set_margin_bottom(bottom_padding)
+            align_box.set_margin_start(style.zoom(30))
+            align_box.set_margin_end(style.zoom(30))
+            
+            align_box.append(grid_internal)
+            rb.append(align_box)
+            
             grid_internal.show()
+            align_box.show()
 
             self._conversation.attach(rb, 0, self._row_counter, 1, 1)
             rb.show()
