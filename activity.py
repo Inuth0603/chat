@@ -408,7 +408,7 @@ class Chat(activity.Activity):
         self._smiley_window.set_margin_end(margin)
 
         self._smiley_toolbar = SmileyToolbar(self)
-        self._smiley_toolbar.set_size_request(width, style.GRID_CELL_SIZE)
+        self._smiley_toolbar.set_hexpand(True)
         self._smiley_window.attach(self._smiley_toolbar, 0, 0, 1, 1)
         self._smiley_toolbar.show()
 
@@ -678,7 +678,7 @@ class Chat(activity.Activity):
         #     self.smiley_button.set_sensitive(False)
         #     self.send_button.set_sensitive(False)
 
-        self._chat_width = int(_get_screen_width() - 2 * style.GRID_CELL_SIZE)
+        self._chat_width = int(_get_screen_width())
         self._chat_height = int(_get_screen_height() - \
             (self._entry_height + 2 * style.GRID_CELL_SIZE))
         self.chatbox.set_size_request(self._chat_width, self._chat_height)
