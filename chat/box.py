@@ -317,7 +317,8 @@ class TextBox(Gtk.TextView):
                 for i in smilies.parse(word):
                     if isinstance(i, GdkPixbuf.Pixbuf):
                         start = self.iter_text.get_offset()
-                        buf.insert_pixbuf(self.iter_text, i)
+                        texture = Gdk.Texture.new_for_pixbuf(i)
+                        buf.insert_paintable(self.iter_text, texture)
                         buf.apply_tag(self._subscript_tag,
                                       buf.get_iter_at_offset(start),
                                       self.iter_text)
