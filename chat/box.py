@@ -387,12 +387,13 @@ class ChatBox(Gtk.ScrolledWindow):
         self._dy = 0
 
         evbox = Gtk.Box()
+        evbox.set_hexpand(True)
         evbox.add_css_class("chatbox-white-bg")
         
         provider = Gtk.CssProvider()
         provider.load_from_data(b".chatbox-white-bg { background-color: white; }")
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        evbox.get_style_context().add_provider(
+            provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         evbox.append(self._conversation)
         self._conversation.show()
@@ -735,6 +736,7 @@ class ChatBox(Gtk.ScrolledWindow):
 
             align_box = Gtk.Box()
             align_box.set_hexpand(True)
+            align_box.set_valign(Gtk.Align.START)
             if rb.tail is None:
                 bottom_padding = style.zoom(7)
             else:
@@ -895,7 +897,7 @@ class _URLMenu(Palette):
     def _copy_to_clipboard_cb(self, menuitem):
         logging.debug('Copy %s to clipboard', self.url)
         clipboard = Gdk.Display.get_default().get_clipboard()
-        clipboard.set_text(self.url)
+        clipboard.set(self.url)
 
     def _url_check_protocol(self, url):
         '''Check that the url has a protocol, otherwise prepend https://
