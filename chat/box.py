@@ -273,12 +273,6 @@ class TextBox(Gtk.TextView):
         self._last_mouse_y = by
         self.set_cursor_if_appropriate(bx, by)
 
-    def __palette_mouse_enter_cb(self, widget, event):
-        self.handler_block(self.motion_notify_id)
-
-    def __palette_mouse_leave_cb(self, widget, event):
-        self.handler_unblock(self.motion_notify_id)
-
     def _add_name(self, name):
         buf = self._buffer
         self.iter_text = self._buffer.get_iter_at_offset(0)
@@ -856,7 +850,6 @@ class _URLMenu(Palette):
 
     def __init__(self, url):
         Palette.__init__(self, url)
-        self.owns_clipboard = False
         self.url = self._url_check_protocol(url)
 
         menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
