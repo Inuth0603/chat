@@ -207,7 +207,7 @@ class Chat(activity.Activity):
         self.chatbox.set_search_text(entry.props.text)
         self._update_search_buttons()
 
-    def _update_search_buttons(self,):
+    def _update_search_buttons(self):
         if len(self.chatbox.search_text) == 0:
             self._search_prev.props.sensitive = False
             self._search_next.props.sensitive = False
@@ -240,6 +240,18 @@ class Chat(activity.Activity):
 
     def _setup_canvas(self):
         ''' Create a canvas '''
+        
+        # Setup application CSS once
+        css_provider = Gtk.CssProvider()
+        bg_black = style.COLOR_BLACK.get_html()
+        bg_grey = style.COLOR_TOOLBAR_GREY.get_html()
+        fg_white = style.COLOR_WHITE.get_html()
+        css = (f".smiley-table-black {{ background-color: {bg_black}; }}\n"
+               f".smiley-toolbar-grey {{ background-color: {bg_grey}; color: {fg_white}; }}")
+        css_provider.load_from_data(css.encode('utf-8'))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
         self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.set_canvas(self._vbox)
         self._vbox.show()
@@ -261,6 +273,12 @@ class Chat(activity.Activity):
 
         self._vbox.append(self._entry_grid)
         self._entry_grid.show()
+
+        self.connect('notify::default-width', self._on_window_size_changed)
+        self.connect('notify::default-height', self._on_window_size_changed)
+
+    def _on_window_size_changed(self, *args):
+        self.chatbox.resize_all()
 
     def _create_smiley_table(self, width):
         # Use the exact size calculation from GTK3 so the emojis scale correctly with the Sugar theme
@@ -366,14 +384,6 @@ class Chat(activity.Activity):
         # Disable overlay scrolling so the scrollbar is permanently visible
         self._smiley_table.set_overlay_scrolling(False)
         
-        # Apply the black CSS specifically to this scrolled window, not all of them!
-        css_provider = Gtk.CssProvider()
-        bg_html = style.COLOR_BLACK.get_html()
-        css = f".smiley-table-black {{ background-color: {bg_html}; }}"
-        css_provider.load_from_data(css.encode('utf-8'))
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        
         self._smiley_table.set_vexpand(True)
         self._smiley_table.set_hexpand(True)
 
@@ -382,6 +392,8 @@ class Chat(activity.Activity):
         self._smiley_window.attach(self._smiley_table, 0, 1, 1, 1)
         self._smiley_table.show()
         table.show()
+
+        self._smiley_window.set_focusable(True)
 
         key_ctrl = Gtk.EventControllerKey.new()
         key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
@@ -497,10 +509,6 @@ class Chat(activity.Activity):
         if not self.has_focus:
             self.notify_user(_('Message from %s') % buddy, text)
 
-    def _toolbar_expanded(self):
-        if self._activity_toolbar_button.is_expanded():
-            return True
-        return False
 
     def _alert(self, title, text=None):
         alert = NotifyAlert(timeout=5)
@@ -749,7 +757,7 @@ class Chat(activity.Activity):
         self._main_stack.set_visible_child_name("smiley_window")
 
     def _hide_smiley_window(self):
-        if hasattr(self, '_main_stack'):
+        if hasattr(self, '_smiley_window'):
             self._main_stack.set_visible_child_name("chatbox")
 
 
@@ -893,15 +901,6 @@ class SmileyToolbar(Gtk.Box):
     def __init__(self, activity):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
         self.add_css_class("smiley-toolbar-grey")
-        
-        # Apply the native Sugar toolbar grey and white text using theme constants
-        css_provider = Gtk.CssProvider()
-        bg_color = style.COLOR_TOOLBAR_GREY.get_html()
-        fg_color = style.COLOR_WHITE.get_html()
-        css = f".smiley-toolbar-grey {{ background-color: {bg_color}; color: {fg_color}; }}"
-        css_provider.load_from_data(css.encode('utf-8'))
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self._activity = activity
         self._add_separator()
