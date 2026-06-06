@@ -897,7 +897,7 @@ class _URLMenu(Palette):
     def _copy_to_clipboard_cb(self, menuitem):
         logging.debug('Copy %s to clipboard', self.url)
         clipboard = Gdk.Display.get_default().get_clipboard()
-        clipboard.set(self.url)
+        clipboard.set_text(self.url)
 
     def _url_check_protocol(self, url):
         '''Check that the url has a protocol, otherwise prepend https://
