@@ -228,16 +228,6 @@ class Chat(activity.Activity):
             self.chatbox.search('forward')
             self._update_search_buttons()
 
-    def _fixed_resize_cb(self, widget=None, rect=None):
-        ''' If a toolbar opens or closes, we need to resize the vbox
-        holding our scrolling window. '''
-        if self._has_alert:
-            dy = style.GRID_CELL_SIZE
-        else:
-            dy = 0
-
-        self.chatbox.resize_conversation(dy)
-
     def _setup_canvas(self):
         ''' Create a canvas '''
         
@@ -435,7 +425,7 @@ class Chat(activity.Activity):
 
         key_ctrl = Gtk.EventControllerKey.new()
         key_ctrl.connect("key-pressed", self._smiley_key_press_cb)
-        self._smiley_window.add_controller(key_ctrl)
+        self.add_controller(key_ctrl)
 
         self._smiley_window.show()
         
@@ -788,9 +778,10 @@ class Chat(activity.Activity):
 
 
     def _smiley_key_press_cb(self, controller, keyval, keycode, state):
-        if keyval == Gdk.KEY_Escape:
-            self._hide_smiley_window()
-            return True
+        if hasattr(self, '_main_stack') and self._main_stack.get_visible_child_name() == "smiley_window":
+            if keyval == Gdk.KEY_Escape:
+                self._hide_smiley_window()
+                return True
         return False
 
     def _show_smiley_window(self):
