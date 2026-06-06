@@ -285,7 +285,6 @@ class Chat(activity.Activity):
 
         self._chat_width = int(_get_screen_width())
         self._chat_height = int(_get_screen_height() - (self._entry_height + 2 * style.GRID_CELL_SIZE))
-        self.chatbox.set_size_request(self._chat_width, self._chat_height)
 
         self.chatbox.resize_all()
         
@@ -293,7 +292,6 @@ class Chat(activity.Activity):
         height = int((_get_screen_height()) - 5 * style.GRID_CELL_SIZE)
         if hasattr(self, '_smiley_table'):
             self._smiley_table.set_size_request(width, height)
-            self._smiley_toolbar.set_size_request(width, -1)
 
         self._fixed_resize_cb()
 
