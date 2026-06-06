@@ -357,17 +357,19 @@ class Chat(activity.Activity):
         self._smiley_toolbar.show()
 
         self._smiley_table = Gtk.ScrolledWindow()
+        self._smiley_table.add_css_class("smiley-table-black")
+        
         # Force the vertical scrollbar to be permanently visible like GTK3
         self._smiley_table.set_policy(Gtk.PolicyType.NEVER,
                                       Gtk.PolicyType.ALWAYS)
         
-        # Disable overlay scrolling so the scrollbar doesn't autohide
+        # Disable overlay scrolling so the scrollbar is permanently visible
         self._smiley_table.set_overlay_scrolling(False)
         
-        # Apply the black CSS strictly to the scroll area (like GTK3), not the toolbar!
+        # Apply the black CSS specifically to this scrolled window, not all of them!
         css_provider = Gtk.CssProvider()
         bg_html = style.COLOR_BLACK.get_html()
-        css = f"scrolledwindow {{ background-color: {bg_html}; }}"
+        css = f".smiley-table-black {{ background-color: {bg_html}; }}"
         css_provider.load_from_data(css.encode('utf-8'))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -900,12 +902,13 @@ class SmileyToolbar(Gtk.Box):
 
     def __init__(self, activity):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        self.add_css_class("smiley-toolbar-grey")
         
         # Apply the native Sugar toolbar grey and white text using theme constants
         css_provider = Gtk.CssProvider()
         bg_color = style.COLOR_TOOLBAR_GREY.get_html()
         fg_color = style.COLOR_WHITE.get_html()
-        css = f"box {{ background-color: {bg_color}; color: {fg_color}; }}"
+        css = f".smiley-toolbar-grey {{ background-color: {bg_color}; color: {fg_color}; }}"
         css_provider.load_from_data(css.encode('utf-8'))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
