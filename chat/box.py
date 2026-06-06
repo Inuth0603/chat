@@ -181,9 +181,31 @@ class TextBox(Gtk.TextView):
         if gesture.get_current_button() == 3:
             # To disable the standard textview popup
             gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+            
+            bx, by = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET,
+                                                  int(x), int(y))
+            iter_tags = self.get_iter_at_location(bx, by)
+
+            if isinstance(iter_tags, tuple):
+                if not iter_tags[0]:
+                    return
+                iter_tags = iter_tags[1]
+
+            for tag in iter_tags.get_tags():
+                try:
+                    url = tag.url
+                except AttributeError:
+                    url = None
+                if url is not None:
+                    palette = tag.palette
+                    palette.popup()
+                    break
 
     # Links can be activated by clicking.
     def __click_released_cb(self, gesture, n_press, x, y):
+        if gesture.get_current_button() == 3:
+            return
+            
         bx, by = self.window_to_buffer_coords(Gtk.TextWindowType.WIDGET,
                                               int(x), int(y))
         iter_tags = self.get_iter_at_location(bx, by)
@@ -199,12 +221,7 @@ class TextBox(Gtk.TextView):
             except AttributeError:
                 url = None
             if url is not None:
-                button = gesture.get_current_button()
-                if button == 3:
-                    palette = tag.palette
-                    palette.popup()
-                else:
-                    self._show_via_journal(url)
+                self._show_via_journal(url)
                 break
 
     def _show_via_journal(self, url):
@@ -869,6 +886,7 @@ class _URLMenu(Palette):
         menu_item = PaletteMenuItem(_('Copy to Clipboard'), 'edit-copy')
         menu_item.connect('activate', self._copy_to_clipboard_cb)
         menu_box.append(menu_item)
+        menu_box.show()
         self.props.invoker = ContentInvoker()
 
     def create_palette(self):
