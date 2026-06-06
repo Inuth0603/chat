@@ -40,6 +40,22 @@ import dbus
 import re
 from gettext import gettext as _
 
+def _get_screen_width():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            return monitors.get_item(0).get_geometry().width
+    return 1200
+
+def _get_screen_height():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            return monitors.get_item(0).get_geometry().height
+    return 900
+
 from sugar4.graphics import style
 from sugar4.graphics.icon import EventIcon, Icon
 from sugar4.graphics.alert import NotifyAlert
