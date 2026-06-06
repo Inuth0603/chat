@@ -277,12 +277,13 @@ class Chat(activity.Activity):
         self.connect('notify::default-width', self._configure_cb)
 
     def _configure_cb(self, *args):
+        # *args silently absorbs the (model, position, removed, added) from items-changed
         self._entry_height = style.GRID_CELL_SIZE
         entry_width = int(_get_screen_width() - 2 * (self._entry_height + style.GRID_CELL_SIZE))
         self._entry.set_size_request(entry_width, self._entry_height)
         self._entry_grid.set_size_request(int(_get_screen_width() - 2 * style.GRID_CELL_SIZE), self._entry_height)
 
-        self._chat_width = int(_get_screen_width() - 2 * style.GRID_CELL_SIZE)
+        self._chat_width = int(_get_screen_width())
         self._chat_height = int(_get_screen_height() - (self._entry_height + 2 * style.GRID_CELL_SIZE))
         self.chatbox.set_size_request(self._chat_width, self._chat_height)
 
@@ -429,8 +430,6 @@ class Chat(activity.Activity):
         self._smiley_window.attach(self._smiley_table, 0, 1, 1, 1)
         self._smiley_table.show()
         table.show()
-
-        self._smiley_window.set_focusable(True)
 
         self._smiley_window.show()
         
@@ -629,12 +628,12 @@ class Chat(activity.Activity):
         ---------------------------------------
         '''
         self._entry_height = style.GRID_CELL_SIZE
-        entry_width = (_get_screen_width()) - \
-            2 * (self._entry_height + style.GRID_CELL_SIZE)
+        entry_width = int((_get_screen_width()) - \
+            2 * (self._entry_height + style.GRID_CELL_SIZE))
 
         self._entry_grid = Gtk.Grid()
         self._entry_grid.set_size_request(
-            (_get_screen_width()) - 2 * style.GRID_CELL_SIZE,
+            int((_get_screen_width()) - 2 * style.GRID_CELL_SIZE),
             self._entry_height)
 
         self.smiley_button = EventIcon(icon_name='smilies',
