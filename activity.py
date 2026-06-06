@@ -81,7 +81,7 @@ logger = logging.getLogger('chat-activity')
 Gst.init([])
 
 
-# pylint: disable-msg=W0223
+# pylint: disable=unimplemented-abstract-method
 class Chat(activity.Activity):
 
     def __init__(self, handle):
@@ -640,16 +640,6 @@ class Chat(activity.Activity):
 
     def _clear_icon_cb(self, entry, icon_pos):
         self._entry.set_text("")
-
-    def _get_icon_pixbuf(self, name):
-        icon_theme = Gtk.IconTheme.get_default()
-        icon_info = icon_theme.lookup_icon(
-            name, style.LARGE_ICON_SIZE, 0)
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
-            icon_info.get_filename(), style.LARGE_ICON_SIZE,
-            style.LARGE_ICON_SIZE)
-        del icon_info
-        return pixbuf
 
     def _entry_focus_in_cb(self, entry, event):
         self._hide_smiley_window()
