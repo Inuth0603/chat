@@ -29,6 +29,7 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import Pango
+from gi.repository import GLib
 
 def _get_screen_width():
     display = Gdk.Display.get_default()
@@ -166,8 +167,14 @@ class TextBox(Gtk.TextView):
     def do_size_allocate(self, width, height, baseline):
         ''' Load buffer after resize to circumvent race condition '''
         Gtk.TextView.do_size_allocate(self, width, height, baseline)
+        GLib.idle_add(self.__deferred_resize)
+
+    def __deferred_resize(self):
+        if not hasattr(self, '_parent') or self._parent is None:
+            return GLib.SOURCE_REMOVE
         self.set_buffer(self._buffer)
         self._parent.resize_rb()
+        return GLib.SOURCE_REMOVE
 
     def resize_box(self):
         self.set_buffer(self._empty_buffer)
